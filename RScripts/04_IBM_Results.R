@@ -1,0 +1,3030 @@
+############################################################################
+#
+# This script processes the results of the projections of the dewy-pine
+# IBMs for natural and anthropogenicpopulations under current and future
+# climatic conditions.
+#
+# Author: Eva Conquet
+#
+###########################################################################
+
+###########################################################################
+#
+# 1. House keeping and loading libraries and data ----
+#
+###########################################################################
+
+## 1.1. House keeping ----
+# -------------------
+
+rm(list = ls())
+
+
+## 1.2. Loading libraries ----
+# -----------------------
+
+library(ggplot2)
+library(patchwork)
+
+
+
+
+###########################################################################
+#
+# 2. Processing results ----
+#
+###########################################################################
+
+n_sim = 500
+n_years = 30
+
+climate_change_models = c("CanESM5", 
+                          "EC_Earth3", "FGOALS_G3", "GFDL_ESM4",
+                          "GISS_E2_1_G", "INM_CM4_8", 
+                          "IPSL_CM6A_LR", "MIROC6", 
+                          "MPI_ESM1_2_LR", "MRI_ESM2_0", 
+                          "NorESM2_MM")
+
+populations_anthropogenic = c("Retin", "Prisoneros", "Bujeo", 
+                          "MonteraTorero",
+                          "SCarbDist")
+populations_natural = c("SierraCarboneraY5", "SierraRetinY5", "Vertedero")
+
+
+## 2.1. Merging results ----
+# ---------------------
+
+# Results data frame
+
+ibm_results = expand.grid(year = seq(1, n_years),
+                          simulation = seq(1, n_sim), 
+                          climate = c("Control", 
+                                      rep("Climate change", 
+                                          times = length(climate_change_models))),
+                          scenario = c("RCP 8.5", "RCP 4.5"),
+                          habitat = c(rep("Natural",
+                                           times = length(populations_natural)), 
+                                       rep("Anthropogenic", 
+                                           times = length(populations_anthropogenic))))
+
+
+# Add populations
+
+ibm_results$population = c(rep(populations_natural, each = n_years * n_sim * (length(climate_change_models) + 1) * 2),
+                           rep(populations_anthropogenic, each = n_years * n_sim * (length(climate_change_models) + 1) * 2))
+
+
+# Add climate models
+
+ibm_results$climate_model = NA
+ibm_results$climate_model[which(ibm_results$climate == "Control")] = "Control"
+ibm_results$climate_model[which(ibm_results$climate == "Climate change")] =
+  rep(rep(climate_change_models, each = n_years * n_sim), 2)
+
+ibm_results$treatment = paste(ibm_results$population,
+                              ibm_results$climate_model,
+                              ibm_results$scenario,
+                              ibm_results$simulation,
+                              sep = "_")
+
+
+for(i in 1:length(list.files("Output/Projections/")[grep("Anthropogenic_Retin", list.files("Output/Projections/"))])){
+  
+  print(i)
+  
+  load(paste0("Output/Projections/", list.files("Output/Projections/")[grep("Anthropogenic_Retin", list.files("Output/Projections/"))][i]))
+}
+
+ibm_retin_canesm5_rcp85 = ibm_retin_canesm5
+ibm_retin_control_rcp85 = ibm_retin_control
+ibm_retin_ec_earth3_rcp85 = ibm_retin_ec_earth3
+ibm_retin_fgoals_g3_rcp85 = ibm_retin_fgoals_g3
+ibm_retin_gfdl_esm4_rcp85 = ibm_retin_gfdl_esm4
+ibm_retin_giss_e2_1_g_rcp85 = ibm_retin_giss_e2_1_g
+ibm_retin_inm_cm4_8_rcp85 = ibm_retin_inm_cm4_8
+ibm_retin_ipsl_cm6a_lr_rcp85 = ibm_retin_ipsl_cm6a_lr
+ibm_retin_miroc6_rcp85 = ibm_retin_miroc6
+ibm_retin_mpi_esm1_2_lr_rcp85 = ibm_retin_mpi_esm1_2_lr
+ibm_retin_mri_esm2_0_rcp85 = ibm_retin_mri_esm2_0
+ibm_retin_noresm2_mm_rcp85 = ibm_retin_noresm2_mm
+
+
+# Add log lambda (per simulation = per row)
+
+ibm_results$log_lambda = NA
+
+ibm_results$log_lambda[which(ibm_results$population == "Retin" &
+                             ibm_results$scenario == "RCP 8.5")] = 
+  c(t(rbind(ibm_retin_control_rcp85[[1]]$log_lambda,
+            ibm_retin_control_rcp85[[2]]$log_lambda,
+            ibm_retin_control_rcp85[[3]]$log_lambda,
+            ibm_retin_control_rcp85[[4]]$log_lambda,
+            ibm_retin_control_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_retin_canesm5_rcp85[[1]]$log_lambda,
+            ibm_retin_canesm5_rcp85[[2]]$log_lambda,
+            ibm_retin_canesm5_rcp85[[3]]$log_lambda,
+            ibm_retin_canesm5_rcp85[[4]]$log_lambda,
+            ibm_retin_canesm5_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_retin_ec_earth3_rcp85[[1]]$log_lambda,
+            ibm_retin_ec_earth3_rcp85[[2]]$log_lambda,
+            ibm_retin_ec_earth3_rcp85[[3]]$log_lambda,
+            ibm_retin_ec_earth3_rcp85[[4]]$log_lambda,
+            ibm_retin_ec_earth3_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_retin_fgoals_g3_rcp85[[1]]$log_lambda,
+            ibm_retin_fgoals_g3_rcp85[[2]]$log_lambda,
+            ibm_retin_fgoals_g3_rcp85[[3]]$log_lambda,
+            ibm_retin_fgoals_g3_rcp85[[4]]$log_lambda,
+            ibm_retin_fgoals_g3_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_retin_gfdl_esm4_rcp85[[1]]$log_lambda,
+            ibm_retin_gfdl_esm4_rcp85[[2]]$log_lambda,
+            ibm_retin_gfdl_esm4_rcp85[[3]]$log_lambda,
+            ibm_retin_gfdl_esm4_rcp85[[4]]$log_lambda,
+            ibm_retin_gfdl_esm4_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_retin_giss_e2_1_g_rcp85[[1]]$log_lambda,
+            ibm_retin_giss_e2_1_g_rcp85[[2]]$log_lambda,
+            ibm_retin_giss_e2_1_g_rcp85[[3]]$log_lambda,
+            ibm_retin_giss_e2_1_g_rcp85[[4]]$log_lambda,
+            ibm_retin_giss_e2_1_g_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_retin_inm_cm4_8_rcp85[[1]]$log_lambda,
+            ibm_retin_inm_cm4_8_rcp85[[2]]$log_lambda,
+            ibm_retin_inm_cm4_8_rcp85[[3]]$log_lambda,
+            ibm_retin_inm_cm4_8_rcp85[[4]]$log_lambda,
+            ibm_retin_inm_cm4_8_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_retin_ipsl_cm6a_lr_rcp85[[1]]$log_lambda,
+            ibm_retin_ipsl_cm6a_lr_rcp85[[2]]$log_lambda,
+            ibm_retin_ipsl_cm6a_lr_rcp85[[3]]$log_lambda,
+            ibm_retin_ipsl_cm6a_lr_rcp85[[4]]$log_lambda,
+            ibm_retin_ipsl_cm6a_lr_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_retin_miroc6_rcp85[[1]]$log_lambda,
+            ibm_retin_miroc6_rcp85[[2]]$log_lambda,
+            ibm_retin_miroc6_rcp85[[3]]$log_lambda,
+            ibm_retin_miroc6_rcp85[[4]]$log_lambda,
+            ibm_retin_miroc6_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_retin_mpi_esm1_2_lr_rcp85[[1]]$log_lambda,
+            ibm_retin_mpi_esm1_2_lr_rcp85[[2]]$log_lambda,
+            ibm_retin_mpi_esm1_2_lr_rcp85[[3]]$log_lambda,
+            ibm_retin_mpi_esm1_2_lr_rcp85[[4]]$log_lambda,
+            ibm_retin_mpi_esm1_2_lr_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_retin_mri_esm2_0_rcp85[[1]]$log_lambda,
+            ibm_retin_mri_esm2_0_rcp85[[2]]$log_lambda,
+            ibm_retin_mri_esm2_0_rcp85[[3]]$log_lambda,
+            ibm_retin_mri_esm2_0_rcp85[[4]]$log_lambda,
+            ibm_retin_mri_esm2_0_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_retin_noresm2_mm_rcp85[[1]]$log_lambda,
+            ibm_retin_noresm2_mm_rcp85[[2]]$log_lambda,
+            ibm_retin_noresm2_mm_rcp85[[3]]$log_lambda,
+            ibm_retin_noresm2_mm_rcp85[[4]]$log_lambda,
+            ibm_retin_noresm2_mm_rcp85[[5]]$log_lambda)))
+
+ibm_results$log_lambda[which(ibm_results$population == "Retin" &
+                               ibm_results$scenario == "RCP 4.5")] = 
+  c(t(rbind(ibm_retin_control_rcp45[[1]]$log_lambda,
+            ibm_retin_control_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_retin_control_rcp45[[3]]$log_lambda,
+            # ibm_retin_control_rcp45[[4]]$log_lambda,
+            # ibm_retin_control_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_retin_canesm5_rcp45[[1]]$log_lambda,
+            ibm_retin_canesm5_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_retin_canesm5_rcp45[[3]]$log_lambda,
+            # ibm_retin_canesm5_rcp45[[4]]$log_lambda,
+            # ibm_retin_canesm5_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_retin_ec_earth3_rcp45[[1]]$log_lambda,
+            ibm_retin_ec_earth3_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_retin_ec_earth3_rcp45[[3]]$log_lambda,
+            # ibm_retin_ec_earth3_rcp45[[4]]$log_lambda,
+            # ibm_retin_ec_earth3_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_retin_fgoals_g3_rcp45[[1]]$log_lambda,
+            ibm_retin_fgoals_g3_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_retin_fgoals_g3_rcp45[[3]]$log_lambda,
+            # ibm_retin_fgoals_g3_rcp45[[4]]$log_lambda,
+            # ibm_retin_fgoals_g3_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_retin_gfdl_esm4_rcp45[[1]]$log_lambda,
+            ibm_retin_gfdl_esm4_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_retin_gfdl_esm4_rcp45[[3]]$log_lambda,
+            # ibm_retin_gfdl_esm4_rcp45[[4]]$log_lambda,
+            # ibm_retin_gfdl_esm4_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_retin_giss_e2_1_g_rcp45[[1]]$log_lambda,
+            ibm_retin_giss_e2_1_g_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_retin_giss_e2_1_g_rcp45[[3]]$log_lambda,
+            # ibm_retin_giss_e2_1_g_rcp45[[4]]$log_lambda,
+            # ibm_retin_giss_e2_1_g_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_retin_inm_cm4_8_rcp45[[1]]$log_lambda,
+            ibm_retin_inm_cm4_8_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_retin_inm_cm4_8_rcp45[[3]]$log_lambda,
+            # ibm_retin_inm_cm4_8_rcp45[[4]]$log_lambda,
+            # ibm_retin_inm_cm4_8_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_retin_ipsl_cm6a_lr_rcp45[[1]]$log_lambda,
+            ibm_retin_ipsl_cm6a_lr_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_retin_ipsl_cm6a_lr_rcp45[[3]]$log_lambda,
+            # ibm_retin_ipsl_cm6a_lr_rcp45[[4]]$log_lambda,
+            # ibm_retin_ipsl_cm6a_lr_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_retin_miroc6_rcp45[[1]]$log_lambda,
+            ibm_retin_miroc6_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_retin_miroc6_rcp45[[3]]$log_lambda,
+            # ibm_retin_miroc6_rcp45[[4]]$log_lambda,
+            # ibm_retin_miroc6_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_retin_mpi_esm1_2_lr_rcp45[[1]]$log_lambda,
+            ibm_retin_mpi_esm1_2_lr_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_retin_mpi_esm1_2_lr_rcp45[[3]]$log_lambda,
+            # ibm_retin_mpi_esm1_2_lr_rcp45[[4]]$log_lambda,
+            # ibm_retin_mpi_esm1_2_lr_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_retin_mri_esm2_0_rcp45[[1]]$log_lambda,
+            ibm_retin_mri_esm2_0_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_retin_mri_esm2_0_rcp45[[3]]$log_lambda,
+            # ibm_retin_mri_esm2_0_rcp45[[4]]$log_lambda,
+            # ibm_retin_mri_esm2_0_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_retin_noresm2_mm_rcp45[[1]]$log_lambda,
+            ibm_retin_noresm2_mm_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_retin_noresm2_mm_rcp45[[3]]$log_lambda,
+            # ibm_retin_noresm2_mm_rcp45[[4]]$log_lambda,
+            # ibm_retin_noresm2_mm_rcp45[[5]]$log_lambda
+            )))
+
+
+# Add extinction
+
+ibm_results$extinction = NA
+
+ibm_results$extinction[which(ibm_results$population == "Retin" &
+                             ibm_results$scenario == "RCP 8.5")] = 
+  c(rep(c(ibm_retin_control_rcp85[[1]]$extinction,
+          ibm_retin_control_rcp85[[2]]$extinction,
+          ibm_retin_control_rcp85[[3]]$extinction,
+          ibm_retin_control_rcp85[[4]]$extinction,
+          ibm_retin_control_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_retin_canesm5_rcp85[[1]]$extinction,
+          ibm_retin_canesm5_rcp85[[2]]$extinction,
+          ibm_retin_canesm5_rcp85[[3]]$extinction,
+          ibm_retin_canesm5_rcp85[[4]]$extinction,
+          ibm_retin_canesm5_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_retin_ec_earth3_rcp85[[1]]$extinction,
+          ibm_retin_ec_earth3_rcp85[[2]]$extinction,
+          ibm_retin_ec_earth3_rcp85[[3]]$extinction,
+          ibm_retin_ec_earth3_rcp85[[4]]$extinction,
+          ibm_retin_ec_earth3_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_retin_fgoals_g3_rcp85[[1]]$extinction,
+          ibm_retin_fgoals_g3_rcp85[[2]]$extinction,
+          ibm_retin_fgoals_g3_rcp85[[3]]$extinction,
+          ibm_retin_fgoals_g3_rcp85[[4]]$extinction,
+          ibm_retin_fgoals_g3_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_retin_gfdl_esm4_rcp85[[1]]$extinction,
+          ibm_retin_gfdl_esm4_rcp85[[2]]$extinction,
+          ibm_retin_gfdl_esm4_rcp85[[3]]$extinction,
+          ibm_retin_gfdl_esm4_rcp85[[4]]$extinction,
+          ibm_retin_gfdl_esm4_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_retin_giss_e2_1_g_rcp85[[1]]$extinction,
+          ibm_retin_giss_e2_1_g_rcp85[[2]]$extinction,
+          ibm_retin_giss_e2_1_g_rcp85[[3]]$extinction,
+          ibm_retin_giss_e2_1_g_rcp85[[4]]$extinction,
+          ibm_retin_giss_e2_1_g_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_retin_inm_cm4_8_rcp85[[1]]$extinction,
+          ibm_retin_inm_cm4_8_rcp85[[2]]$extinction,
+          ibm_retin_inm_cm4_8_rcp85[[3]]$extinction,
+          ibm_retin_inm_cm4_8_rcp85[[4]]$extinction,
+          ibm_retin_inm_cm4_8_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_retin_ipsl_cm6a_lr_rcp85[[1]]$extinction,
+          ibm_retin_ipsl_cm6a_lr_rcp85[[2]]$extinction,
+          ibm_retin_ipsl_cm6a_lr_rcp85[[3]]$extinction,
+          ibm_retin_ipsl_cm6a_lr_rcp85[[4]]$extinction,
+          ibm_retin_ipsl_cm6a_lr_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_retin_miroc6_rcp85[[1]]$extinction,
+          ibm_retin_miroc6_rcp85[[2]]$extinction,
+          ibm_retin_miroc6_rcp85[[3]]$extinction,
+          ibm_retin_miroc6_rcp85[[4]]$extinction,
+          ibm_retin_miroc6_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_retin_mpi_esm1_2_lr_rcp85[[1]]$extinction,
+          ibm_retin_mpi_esm1_2_lr_rcp85[[2]]$extinction,
+          ibm_retin_mpi_esm1_2_lr_rcp85[[3]]$extinction,
+          ibm_retin_mpi_esm1_2_lr_rcp85[[4]]$extinction,
+          ibm_retin_mpi_esm1_2_lr_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_retin_mri_esm2_0_rcp85[[1]]$extinction,
+          ibm_retin_mri_esm2_0_rcp85[[2]]$extinction,
+          ibm_retin_mri_esm2_0_rcp85[[3]]$extinction,
+          ibm_retin_mri_esm2_0_rcp85[[4]]$extinction,
+          ibm_retin_mri_esm2_0_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_retin_noresm2_mm_rcp85[[1]]$extinction,
+          ibm_retin_noresm2_mm_rcp85[[2]]$extinction,
+          ibm_retin_noresm2_mm_rcp85[[3]]$extinction,
+          ibm_retin_noresm2_mm_rcp85[[4]]$extinction,
+          ibm_retin_noresm2_mm_rcp85[[5]]$extinction), each = n_years))
+
+ibm_results$extinction[which(ibm_results$population == "Retin" &
+                               ibm_results$scenario == "RCP 4.5")] = 
+  c(rep(c(ibm_retin_control_rcp45[[1]]$extinction,
+          ibm_retin_control_rcp45[[2]]$extinction
+          # ,
+          # ibm_retin_control_rcp45[[3]]$extinction,
+          # ibm_retin_control_rcp45[[4]]$extinction,
+          # ibm_retin_control_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_retin_canesm5_rcp45[[1]]$extinction,
+          ibm_retin_canesm5_rcp45[[2]]$extinction
+          # ,
+          # ibm_retin_canesm5_rcp45[[3]]$extinction,
+          # ibm_retin_canesm5_rcp45[[4]]$extinction,
+          # ibm_retin_canesm5_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_retin_ec_earth3_rcp45[[1]]$extinction,
+          ibm_retin_ec_earth3_rcp45[[2]]$extinction
+          # ,
+          # ibm_retin_ec_earth3_rcp45[[3]]$extinction,
+          # ibm_retin_ec_earth3_rcp45[[4]]$extinction,
+          # ibm_retin_ec_earth3_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_retin_fgoals_g3_rcp45[[1]]$extinction,
+          ibm_retin_fgoals_g3_rcp45[[2]]$extinction
+          # ,
+          # ibm_retin_fgoals_g3_rcp45[[3]]$extinction,
+          # ibm_retin_fgoals_g3_rcp45[[4]]$extinction,
+          # ibm_retin_fgoals_g3_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_retin_gfdl_esm4_rcp45[[1]]$extinction,
+          ibm_retin_gfdl_esm4_rcp45[[2]]$extinction
+          # ,
+          # ibm_retin_gfdl_esm4_rcp45[[3]]$extinction,
+          # ibm_retin_gfdl_esm4_rcp45[[4]]$extinction,
+          # ibm_retin_gfdl_esm4_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_retin_giss_e2_1_g_rcp45[[1]]$extinction,
+          ibm_retin_giss_e2_1_g_rcp45[[2]]$extinction
+          # ,
+          # ibm_retin_giss_e2_1_g_rcp45[[3]]$extinction,
+          # ibm_retin_giss_e2_1_g_rcp45[[4]]$extinction,
+          # ibm_retin_giss_e2_1_g_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_retin_inm_cm4_8_rcp45[[1]]$extinction,
+          ibm_retin_inm_cm4_8_rcp45[[2]]$extinction
+          # ,
+          # ibm_retin_inm_cm4_8_rcp45[[3]]$extinction,
+          # ibm_retin_inm_cm4_8_rcp45[[4]]$extinction,
+          # ibm_retin_inm_cm4_8_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_retin_ipsl_cm6a_lr_rcp45[[1]]$extinction,
+          ibm_retin_ipsl_cm6a_lr_rcp45[[2]]$extinction
+          # ,
+          # ibm_retin_ipsl_cm6a_lr_rcp45[[3]]$extinction,
+          # ibm_retin_ipsl_cm6a_lr_rcp45[[4]]$extinction,
+          # ibm_retin_ipsl_cm6a_lr_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_retin_miroc6_rcp45[[1]]$extinction,
+          ibm_retin_miroc6_rcp45[[2]]$extinction
+          # ,
+          # ibm_retin_miroc6_rcp45[[3]]$extinction,
+          # ibm_retin_miroc6_rcp45[[4]]$extinction,
+          # ibm_retin_miroc6_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_retin_mpi_esm1_2_lr_rcp45[[1]]$extinction,
+          ibm_retin_mpi_esm1_2_lr_rcp45[[2]]$extinction
+          # ,
+          # ibm_retin_mpi_esm1_2_lr_rcp45[[3]]$extinction,
+          # ibm_retin_mpi_esm1_2_lr_rcp45[[4]]$extinction,
+          # ibm_retin_mpi_esm1_2_lr_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_retin_mri_esm2_0_rcp45[[1]]$extinction,
+          ibm_retin_mri_esm2_0_rcp45[[2]]$extinction
+          # ,
+          # ibm_retin_mri_esm2_0_rcp45[[3]]$extinction,
+          # ibm_retin_mri_esm2_0_rcp45[[4]]$extinction,
+          # ibm_retin_mri_esm2_0_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_retin_noresm2_mm_rcp45[[1]]$extinction,
+          ibm_retin_noresm2_mm_rcp45[[2]]$extinction
+          # ,
+          # ibm_retin_noresm2_mm_rcp45[[3]]$extinction,
+          # ibm_retin_noresm2_mm_rcp45[[4]]$extinction,
+          # ibm_retin_noresm2_mm_rcp45[[5]]$extinction
+          ), each = n_years))
+
+
+rm(list = grep("ibm_retin", ls() , value = TRUE, invert = FALSE))
+
+
+for(i in 1:length(list.files("Output/Projections/")[grep("Anthropogenic_Prisoneros", list.files("Output/Projections/"))])){
+  
+  print(i)
+  
+  load(paste0("Output/Projections/", list.files("Output/Projections/")[grep("Anthropogenic_Prisoneros", list.files("Output/Projections/"))][i]))
+}
+
+ibm_prisoneros_canesm5_rcp85 = ibm_prisoneros_canesm5
+ibm_prisoneros_control_rcp85 = ibm_prisoneros_control
+ibm_prisoneros_ec_earth3_rcp85 = ibm_prisoneros_ec_earth3
+ibm_prisoneros_fgoals_g3_rcp85 = ibm_prisoneros_fgoals_g3
+ibm_prisoneros_gfdl_esm4_rcp85 = ibm_prisoneros_gfdl_esm4
+ibm_prisoneros_giss_e2_1_g_rcp85 = ibm_prisoneros_giss_e2_1_g
+ibm_prisoneros_inm_cm4_8_rcp85 = ibm_prisoneros_inm_cm4_8
+ibm_prisoneros_ipsl_cm6a_lr_rcp85 = ibm_prisoneros_ipsl_cm6a_lr
+ibm_prisoneros_miroc6_rcp85 = ibm_prisoneros_miroc6
+ibm_prisoneros_mpi_esm1_2_lr_rcp85 = ibm_prisoneros_mpi_esm1_2_lr
+ibm_prisoneros_mri_esm2_0_rcp85 = ibm_prisoneros_mri_esm2_0
+ibm_prisoneros_noresm2_mm_rcp85 = ibm_prisoneros_noresm2_mm
+
+# Add log lambda (per simulation = per row)
+
+ibm_results$log_lambda[which(ibm_results$population == "Prisoneros" &
+                             ibm_results$scenario == "RCP 8.5")] = 
+  c(t(rbind(ibm_prisoneros_control_rcp85[[1]]$log_lambda,
+            ibm_prisoneros_control_rcp85[[2]]$log_lambda,
+            ibm_prisoneros_control_rcp85[[3]]$log_lambda,
+            ibm_prisoneros_control_rcp85[[4]]$log_lambda,
+            ibm_prisoneros_control_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_prisoneros_canesm5_rcp85[[1]]$log_lambda,
+            ibm_prisoneros_canesm5_rcp85[[2]]$log_lambda,
+            ibm_prisoneros_canesm5_rcp85[[3]]$log_lambda,
+            ibm_prisoneros_canesm5_rcp85[[4]]$log_lambda,
+            ibm_prisoneros_canesm5_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_prisoneros_ec_earth3_rcp85[[1]]$log_lambda,
+            ibm_prisoneros_ec_earth3_rcp85[[2]]$log_lambda,
+            ibm_prisoneros_ec_earth3_rcp85[[3]]$log_lambda,
+            ibm_prisoneros_ec_earth3_rcp85[[4]]$log_lambda,
+            ibm_prisoneros_ec_earth3_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_prisoneros_fgoals_g3_rcp85[[1]]$log_lambda,
+            ibm_prisoneros_fgoals_g3_rcp85[[2]]$log_lambda,
+            ibm_prisoneros_fgoals_g3_rcp85[[3]]$log_lambda,
+            ibm_prisoneros_fgoals_g3_rcp85[[4]]$log_lambda,
+            ibm_prisoneros_fgoals_g3_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_prisoneros_gfdl_esm4_rcp85[[1]]$log_lambda,
+            ibm_prisoneros_gfdl_esm4_rcp85[[2]]$log_lambda,
+            ibm_prisoneros_gfdl_esm4_rcp85[[3]]$log_lambda,
+            ibm_prisoneros_gfdl_esm4_rcp85[[4]]$log_lambda,
+            ibm_prisoneros_gfdl_esm4_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_prisoneros_giss_e2_1_g_rcp85[[1]]$log_lambda,
+            ibm_prisoneros_giss_e2_1_g_rcp85[[2]]$log_lambda,
+            ibm_prisoneros_giss_e2_1_g_rcp85[[3]]$log_lambda,
+            ibm_prisoneros_giss_e2_1_g_rcp85[[4]]$log_lambda,
+            ibm_prisoneros_giss_e2_1_g_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_prisoneros_inm_cm4_8_rcp85[[1]]$log_lambda,
+            ibm_prisoneros_inm_cm4_8_rcp85[[2]]$log_lambda,
+            ibm_prisoneros_inm_cm4_8_rcp85[[3]]$log_lambda,
+            ibm_prisoneros_inm_cm4_8_rcp85[[4]]$log_lambda,
+            ibm_prisoneros_inm_cm4_8_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_prisoneros_ipsl_cm6a_lr_rcp85[[1]]$log_lambda,
+            ibm_prisoneros_ipsl_cm6a_lr_rcp85[[2]]$log_lambda,
+            ibm_prisoneros_ipsl_cm6a_lr_rcp85[[3]]$log_lambda,
+            ibm_prisoneros_ipsl_cm6a_lr_rcp85[[4]]$log_lambda,
+            ibm_prisoneros_ipsl_cm6a_lr_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_prisoneros_miroc6_rcp85[[1]]$log_lambda,
+            ibm_prisoneros_miroc6_rcp85[[2]]$log_lambda,
+            ibm_prisoneros_miroc6_rcp85[[3]]$log_lambda,
+            ibm_prisoneros_miroc6_rcp85[[4]]$log_lambda,
+            ibm_prisoneros_miroc6_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_prisoneros_mpi_esm1_2_lr_rcp85[[1]]$log_lambda,
+            ibm_prisoneros_mpi_esm1_2_lr_rcp85[[2]]$log_lambda,
+            ibm_prisoneros_mpi_esm1_2_lr_rcp85[[3]]$log_lambda,
+            ibm_prisoneros_mpi_esm1_2_lr_rcp85[[4]]$log_lambda,
+            ibm_prisoneros_mpi_esm1_2_lr_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_prisoneros_mri_esm2_0_rcp85[[1]]$log_lambda,
+            ibm_prisoneros_mri_esm2_0_rcp85[[2]]$log_lambda,
+            ibm_prisoneros_mri_esm2_0_rcp85[[3]]$log_lambda,
+            ibm_prisoneros_mri_esm2_0_rcp85[[4]]$log_lambda,
+            ibm_prisoneros_mri_esm2_0_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_prisoneros_noresm2_mm_rcp85[[1]]$log_lambda,
+            ibm_prisoneros_noresm2_mm_rcp85[[2]]$log_lambda,
+            ibm_prisoneros_noresm2_mm_rcp85[[3]]$log_lambda,
+            ibm_prisoneros_noresm2_mm_rcp85[[4]]$log_lambda,
+            ibm_prisoneros_noresm2_mm_rcp85[[5]]$log_lambda)))
+
+ibm_results$log_lambda[which(ibm_results$population == "Prisoneros" &
+                               ibm_results$scenario == "RCP 4.5")] = 
+  c(t(rbind(ibm_prisoneros_control_rcp45[[1]]$log_lambda,
+            ibm_prisoneros_control_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_prisoneros_control_rcp45[[3]]$log_lambda,
+            # ibm_prisoneros_control_rcp45[[4]]$log_lambda,
+            # ibm_prisoneros_control_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_prisoneros_canesm5_rcp45[[1]]$log_lambda,
+            ibm_prisoneros_canesm5_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_prisoneros_canesm5_rcp45[[3]]$log_lambda,
+            # ibm_prisoneros_canesm5_rcp45[[4]]$log_lambda,
+            # ibm_prisoneros_canesm5_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_prisoneros_ec_earth3_rcp45[[1]]$log_lambda,
+            ibm_prisoneros_ec_earth3_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_prisoneros_ec_earth3_rcp45[[3]]$log_lambda,
+            # ibm_prisoneros_ec_earth3_rcp45[[4]]$log_lambda,
+            # ibm_prisoneros_ec_earth3_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_prisoneros_fgoals_g3_rcp45[[1]]$log_lambda,
+            ibm_prisoneros_fgoals_g3_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_prisoneros_fgoals_g3_rcp45[[3]]$log_lambda,
+            # ibm_prisoneros_fgoals_g3_rcp45[[4]]$log_lambda,
+            # ibm_prisoneros_fgoals_g3_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_prisoneros_gfdl_esm4_rcp45[[1]]$log_lambda,
+            ibm_prisoneros_gfdl_esm4_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_prisoneros_gfdl_esm4_rcp45[[3]]$log_lambda,
+            # ibm_prisoneros_gfdl_esm4_rcp45[[4]]$log_lambda,
+            # ibm_prisoneros_gfdl_esm4_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_prisoneros_giss_e2_1_g_rcp45[[1]]$log_lambda,
+            ibm_prisoneros_giss_e2_1_g_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_prisoneros_giss_e2_1_g_rcp45[[3]]$log_lambda,
+            # ibm_prisoneros_giss_e2_1_g_rcp45[[4]]$log_lambda,
+            # ibm_prisoneros_giss_e2_1_g_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_prisoneros_inm_cm4_8_rcp45[[1]]$log_lambda,
+            ibm_prisoneros_inm_cm4_8_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_prisoneros_inm_cm4_8_rcp45[[3]]$log_lambda,
+            # ibm_prisoneros_inm_cm4_8_rcp45[[4]]$log_lambda,
+            # ibm_prisoneros_inm_cm4_8_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_prisoneros_ipsl_cm6a_lr_rcp45[[1]]$log_lambda,
+            ibm_prisoneros_ipsl_cm6a_lr_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_prisoneros_ipsl_cm6a_lr_rcp45[[3]]$log_lambda,
+            # ibm_prisoneros_ipsl_cm6a_lr_rcp45[[4]]$log_lambda,
+            # ibm_prisoneros_ipsl_cm6a_lr_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_prisoneros_miroc6_rcp45[[1]]$log_lambda,
+            ibm_prisoneros_miroc6_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_prisoneros_miroc6_rcp45[[3]]$log_lambda,
+            # ibm_prisoneros_miroc6_rcp45[[4]]$log_lambda,
+            # ibm_prisoneros_miroc6_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_prisoneros_mpi_esm1_2_lr_rcp45[[1]]$log_lambda,
+            ibm_prisoneros_mpi_esm1_2_lr_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_prisoneros_mpi_esm1_2_lr_rcp45[[3]]$log_lambda,
+            # ibm_prisoneros_mpi_esm1_2_lr_rcp45[[4]]$log_lambda,
+            # ibm_prisoneros_mpi_esm1_2_lr_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_prisoneros_mri_esm2_0_rcp45[[1]]$log_lambda,
+            ibm_prisoneros_mri_esm2_0_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_prisoneros_mri_esm2_0_rcp45[[3]]$log_lambda,
+            # ibm_prisoneros_mri_esm2_0_rcp45[[4]]$log_lambda,
+            # ibm_prisoneros_mri_esm2_0_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_prisoneros_noresm2_mm_rcp45[[1]]$log_lambda,
+            ibm_prisoneros_noresm2_mm_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_prisoneros_noresm2_mm_rcp45[[3]]$log_lambda,
+            # ibm_prisoneros_noresm2_mm_rcp45[[4]]$log_lambda,
+            # ibm_prisoneros_noresm2_mm_rcp45[[5]]$log_lambda
+            )))
+
+
+# Add extinction
+
+ibm_results$extinction[which(ibm_results$population == "Prisoneros" &
+                             ibm_results$scenario == "RCP 8.5")] = 
+  c(rep(c(ibm_prisoneros_control_rcp85[[1]]$extinction,
+          ibm_prisoneros_control_rcp85[[2]]$extinction,
+          ibm_prisoneros_control_rcp85[[3]]$extinction,
+          ibm_prisoneros_control_rcp85[[4]]$extinction,
+          ibm_prisoneros_control_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_prisoneros_canesm5_rcp85[[1]]$extinction,
+          ibm_prisoneros_canesm5_rcp85[[2]]$extinction,
+          ibm_prisoneros_canesm5_rcp85[[3]]$extinction,
+          ibm_prisoneros_canesm5_rcp85[[4]]$extinction,
+          ibm_prisoneros_canesm5_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_prisoneros_ec_earth3_rcp85[[1]]$extinction,
+          ibm_prisoneros_ec_earth3_rcp85[[2]]$extinction,
+          ibm_prisoneros_ec_earth3_rcp85[[3]]$extinction,
+          ibm_prisoneros_ec_earth3_rcp85[[4]]$extinction,
+          ibm_prisoneros_ec_earth3_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_prisoneros_fgoals_g3_rcp85[[1]]$extinction,
+          ibm_prisoneros_fgoals_g3_rcp85[[2]]$extinction,
+          ibm_prisoneros_fgoals_g3_rcp85[[3]]$extinction,
+          ibm_prisoneros_fgoals_g3_rcp85[[4]]$extinction,
+          ibm_prisoneros_fgoals_g3_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_prisoneros_gfdl_esm4_rcp85[[1]]$extinction,
+          ibm_prisoneros_gfdl_esm4_rcp85[[2]]$extinction,
+          ibm_prisoneros_gfdl_esm4_rcp85[[3]]$extinction,
+          ibm_prisoneros_gfdl_esm4_rcp85[[4]]$extinction,
+          ibm_prisoneros_gfdl_esm4_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_prisoneros_giss_e2_1_g_rcp85[[1]]$extinction,
+          ibm_prisoneros_giss_e2_1_g_rcp85[[2]]$extinction,
+          ibm_prisoneros_giss_e2_1_g_rcp85[[3]]$extinction,
+          ibm_prisoneros_giss_e2_1_g_rcp85[[4]]$extinction,
+          ibm_prisoneros_giss_e2_1_g_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_prisoneros_inm_cm4_8_rcp85[[1]]$extinction,
+          ibm_prisoneros_inm_cm4_8_rcp85[[2]]$extinction,
+          ibm_prisoneros_inm_cm4_8_rcp85[[3]]$extinction,
+          ibm_prisoneros_inm_cm4_8_rcp85[[4]]$extinction,
+          ibm_prisoneros_inm_cm4_8_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_prisoneros_ipsl_cm6a_lr_rcp85[[1]]$extinction,
+          ibm_prisoneros_ipsl_cm6a_lr_rcp85[[2]]$extinction,
+          ibm_prisoneros_ipsl_cm6a_lr_rcp85[[3]]$extinction,
+          ibm_prisoneros_ipsl_cm6a_lr_rcp85[[4]]$extinction,
+          ibm_prisoneros_ipsl_cm6a_lr_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_prisoneros_miroc6_rcp85[[1]]$extinction,
+          ibm_prisoneros_miroc6_rcp85[[2]]$extinction,
+          ibm_prisoneros_miroc6_rcp85[[3]]$extinction,
+          ibm_prisoneros_miroc6_rcp85[[4]]$extinction,
+          ibm_prisoneros_miroc6_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_prisoneros_mpi_esm1_2_lr_rcp85[[1]]$extinction,
+          ibm_prisoneros_mpi_esm1_2_lr_rcp85[[2]]$extinction,
+          ibm_prisoneros_mpi_esm1_2_lr_rcp85[[3]]$extinction,
+          ibm_prisoneros_mpi_esm1_2_lr_rcp85[[4]]$extinction,
+          ibm_prisoneros_mpi_esm1_2_lr_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_prisoneros_mri_esm2_0_rcp85[[1]]$extinction,
+          ibm_prisoneros_mri_esm2_0_rcp85[[2]]$extinction,
+          ibm_prisoneros_mri_esm2_0_rcp85[[3]]$extinction,
+          ibm_prisoneros_mri_esm2_0_rcp85[[4]]$extinction,
+          ibm_prisoneros_mri_esm2_0_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_prisoneros_noresm2_mm_rcp85[[1]]$extinction,
+          ibm_prisoneros_noresm2_mm_rcp85[[2]]$extinction,
+          ibm_prisoneros_noresm2_mm_rcp85[[3]]$extinction,
+          ibm_prisoneros_noresm2_mm_rcp85[[4]]$extinction,
+          ibm_prisoneros_noresm2_mm_rcp85[[5]]$extinction), each = n_years))
+
+ibm_results$extinction[which(ibm_results$population == "Prisoneros" &
+                               ibm_results$scenario == "RCP 4.5")] = 
+  c(rep(c(ibm_prisoneros_control_rcp45[[1]]$extinction,
+          ibm_prisoneros_control_rcp45[[2]]$extinction
+          # ,
+          # ibm_prisoneros_control_rcp45[[3]]$extinction,
+          # ibm_prisoneros_control_rcp45[[4]]$extinction,
+          # ibm_prisoneros_control_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_prisoneros_canesm5_rcp45[[1]]$extinction,
+          ibm_prisoneros_canesm5_rcp45[[2]]$extinction
+          # ,
+          # ibm_prisoneros_canesm5_rcp45[[3]]$extinction,
+          # ibm_prisoneros_canesm5_rcp45[[4]]$extinction,
+          # ibm_prisoneros_canesm5_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_prisoneros_ec_earth3_rcp45[[1]]$extinction,
+          ibm_prisoneros_ec_earth3_rcp45[[2]]$extinction
+          # ,
+          # ibm_prisoneros_ec_earth3_rcp45[[3]]$extinction,
+          # ibm_prisoneros_ec_earth3_rcp45[[4]]$extinction,
+          # ibm_prisoneros_ec_earth3_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_prisoneros_fgoals_g3_rcp45[[1]]$extinction,
+          ibm_prisoneros_fgoals_g3_rcp45[[2]]$extinction
+          # ,
+          # ibm_prisoneros_fgoals_g3_rcp45[[3]]$extinction,
+          # ibm_prisoneros_fgoals_g3_rcp45[[4]]$extinction,
+          # ibm_prisoneros_fgoals_g3_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_prisoneros_gfdl_esm4_rcp45[[1]]$extinction,
+          ibm_prisoneros_gfdl_esm4_rcp45[[2]]$extinction
+          # ,
+          # ibm_prisoneros_gfdl_esm4_rcp45[[3]]$extinction,
+          # ibm_prisoneros_gfdl_esm4_rcp45[[4]]$extinction,
+          # ibm_prisoneros_gfdl_esm4_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_prisoneros_giss_e2_1_g_rcp45[[1]]$extinction,
+          ibm_prisoneros_giss_e2_1_g_rcp45[[2]]$extinction
+          # ,
+          # ibm_prisoneros_giss_e2_1_g_rcp45[[3]]$extinction,
+          # ibm_prisoneros_giss_e2_1_g_rcp45[[4]]$extinction,
+          # ibm_prisoneros_giss_e2_1_g_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_prisoneros_inm_cm4_8_rcp45[[1]]$extinction,
+          ibm_prisoneros_inm_cm4_8_rcp45[[2]]$extinction
+          # ,
+          # ibm_prisoneros_inm_cm4_8_rcp45[[3]]$extinction,
+          # ibm_prisoneros_inm_cm4_8_rcp45[[4]]$extinction,
+          # ibm_prisoneros_inm_cm4_8_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_prisoneros_ipsl_cm6a_lr_rcp45[[1]]$extinction,
+          ibm_prisoneros_ipsl_cm6a_lr_rcp45[[2]]$extinction
+          # ,
+          # ibm_prisoneros_ipsl_cm6a_lr_rcp45[[3]]$extinction,
+          # ibm_prisoneros_ipsl_cm6a_lr_rcp45[[4]]$extinction,
+          # ibm_prisoneros_ipsl_cm6a_lr_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_prisoneros_miroc6_rcp45[[1]]$extinction,
+          ibm_prisoneros_miroc6_rcp45[[2]]$extinction
+          # ,
+          # ibm_prisoneros_miroc6_rcp45[[3]]$extinction,
+          # ibm_prisoneros_miroc6_rcp45[[4]]$extinction,
+          # ibm_prisoneros_miroc6_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_prisoneros_mpi_esm1_2_lr_rcp45[[1]]$extinction,
+          ibm_prisoneros_mpi_esm1_2_lr_rcp45[[2]]$extinction
+          # ,
+          # ibm_prisoneros_mpi_esm1_2_lr_rcp45[[3]]$extinction,
+          # ibm_prisoneros_mpi_esm1_2_lr_rcp45[[4]]$extinction,
+          # ibm_prisoneros_mpi_esm1_2_lr_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_prisoneros_mri_esm2_0_rcp45[[1]]$extinction,
+          ibm_prisoneros_mri_esm2_0_rcp45[[2]]$extinction
+          # ,
+          # ibm_prisoneros_mri_esm2_0_rcp45[[3]]$extinction,
+          # ibm_prisoneros_mri_esm2_0_rcp45[[4]]$extinction,
+          # ibm_prisoneros_mri_esm2_0_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_prisoneros_noresm2_mm_rcp45[[1]]$extinction,
+          ibm_prisoneros_noresm2_mm_rcp45[[2]]$extinction
+          # ,
+          # ibm_prisoneros_noresm2_mm_rcp45[[3]]$extinction,
+          # ibm_prisoneros_noresm2_mm_rcp45[[4]]$extinction,
+          # ibm_prisoneros_noresm2_mm_rcp45[[5]]$extinction
+          ), each = n_years))
+
+
+rm(list = grep("ibm_prisoneros", ls() , value = TRUE, invert = FALSE))
+
+
+for(i in 1:length(list.files("Output/Projections/")[grep("Anthropogenic_Bujeo", list.files("Output/Projections/"))])){
+  
+  print(i)
+  
+  load(paste0("Output/Projections/", list.files("Output/Projections/")[grep("Anthropogenic_Bujeo", list.files("Output/Projections/"))][i]))
+}
+
+
+ibm_bujeo_canesm5_rcp85 = ibm_bujeo_canesm5
+ibm_bujeo_control_rcp85 = ibm_bujeo_control
+ibm_bujeo_ec_earth3_rcp85 = ibm_bujeo_ec_earth3
+ibm_bujeo_fgoals_g3_rcp85 = ibm_bujeo_fgoals_g3
+ibm_bujeo_gfdl_esm4_rcp85 = ibm_bujeo_gfdl_esm4
+ibm_bujeo_giss_e2_1_g_rcp85 = ibm_bujeo_giss_e2_1_g
+ibm_bujeo_inm_cm4_8_rcp85 = ibm_bujeo_inm_cm4_8
+ibm_bujeo_ipsl_cm6a_lr_rcp85 = ibm_bujeo_ipsl_cm6a_lr
+ibm_bujeo_miroc6_rcp85 = ibm_bujeo_miroc6
+ibm_bujeo_mpi_esm1_2_lr_rcp85 = ibm_bujeo_mpi_esm1_2_lr
+ibm_bujeo_mri_esm2_0_rcp85 = ibm_bujeo_mri_esm2_0
+ibm_bujeo_noresm2_mm_rcp85 = ibm_bujeo_noresm2_mm
+
+
+# Add log lambda (per simulation = per row)
+
+ibm_results$log_lambda[which(ibm_results$population == "Bujeo" &
+                             ibm_results$scenario == "RCP 8.5")] = 
+  c(t(rbind(ibm_bujeo_control_rcp85[[1]]$log_lambda,
+            ibm_bujeo_control_rcp85[[2]]$log_lambda,
+            ibm_bujeo_control_rcp85[[3]]$log_lambda,
+            ibm_bujeo_control_rcp85[[4]]$log_lambda,
+            ibm_bujeo_control_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_bujeo_canesm5_rcp85[[1]]$log_lambda,
+            ibm_bujeo_canesm5_rcp85[[2]]$log_lambda,
+            ibm_bujeo_canesm5_rcp85[[3]]$log_lambda,
+            ibm_bujeo_canesm5_rcp85[[4]]$log_lambda,
+            ibm_bujeo_canesm5_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_bujeo_ec_earth3_rcp85[[1]]$log_lambda,
+            ibm_bujeo_ec_earth3_rcp85[[2]]$log_lambda,
+            ibm_bujeo_ec_earth3_rcp85[[3]]$log_lambda,
+            ibm_bujeo_ec_earth3_rcp85[[4]]$log_lambda,
+            ibm_bujeo_ec_earth3_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_bujeo_fgoals_g3_rcp85[[1]]$log_lambda,
+            ibm_bujeo_fgoals_g3_rcp85[[2]]$log_lambda,
+            ibm_bujeo_fgoals_g3_rcp85[[3]]$log_lambda,
+            ibm_bujeo_fgoals_g3_rcp85[[4]]$log_lambda,
+            ibm_bujeo_fgoals_g3_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_bujeo_gfdl_esm4_rcp85[[1]]$log_lambda,
+            ibm_bujeo_gfdl_esm4_rcp85[[2]]$log_lambda,
+            ibm_bujeo_gfdl_esm4_rcp85[[3]]$log_lambda,
+            ibm_bujeo_gfdl_esm4_rcp85[[4]]$log_lambda,
+            ibm_bujeo_gfdl_esm4_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_bujeo_giss_e2_1_g_rcp85[[1]]$log_lambda,
+            ibm_bujeo_giss_e2_1_g_rcp85[[2]]$log_lambda,
+            ibm_bujeo_giss_e2_1_g_rcp85[[3]]$log_lambda,
+            ibm_bujeo_giss_e2_1_g_rcp85[[4]]$log_lambda,
+            ibm_bujeo_giss_e2_1_g_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_bujeo_inm_cm4_8_rcp85[[1]]$log_lambda,
+            ibm_bujeo_inm_cm4_8_rcp85[[2]]$log_lambda,
+            ibm_bujeo_inm_cm4_8_rcp85[[3]]$log_lambda,
+            ibm_bujeo_inm_cm4_8_rcp85[[4]]$log_lambda,
+            ibm_bujeo_inm_cm4_8_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_bujeo_ipsl_cm6a_lr_rcp85[[1]]$log_lambda,
+            ibm_bujeo_ipsl_cm6a_lr_rcp85[[2]]$log_lambda,
+            ibm_bujeo_ipsl_cm6a_lr_rcp85[[3]]$log_lambda,
+            ibm_bujeo_ipsl_cm6a_lr_rcp85[[4]]$log_lambda,
+            ibm_bujeo_ipsl_cm6a_lr_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_bujeo_miroc6_rcp85[[1]]$log_lambda,
+            ibm_bujeo_miroc6_rcp85[[2]]$log_lambda,
+            ibm_bujeo_miroc6_rcp85[[3]]$log_lambda,
+            ibm_bujeo_miroc6_rcp85[[4]]$log_lambda,
+            ibm_bujeo_miroc6_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_bujeo_mpi_esm1_2_lr_rcp85[[1]]$log_lambda,
+            ibm_bujeo_mpi_esm1_2_lr_rcp85[[2]]$log_lambda,
+            ibm_bujeo_mpi_esm1_2_lr_rcp85[[3]]$log_lambda,
+            ibm_bujeo_mpi_esm1_2_lr_rcp85[[4]]$log_lambda,
+            ibm_bujeo_mpi_esm1_2_lr_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_bujeo_mri_esm2_0_rcp85[[1]]$log_lambda,
+            ibm_bujeo_mri_esm2_0_rcp85[[2]]$log_lambda,
+            ibm_bujeo_mri_esm2_0_rcp85[[3]]$log_lambda,
+            ibm_bujeo_mri_esm2_0_rcp85[[4]]$log_lambda,
+            ibm_bujeo_mri_esm2_0_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_bujeo_noresm2_mm_rcp85[[1]]$log_lambda,
+            ibm_bujeo_noresm2_mm_rcp85[[2]]$log_lambda,
+            ibm_bujeo_noresm2_mm_rcp85[[3]]$log_lambda,
+            ibm_bujeo_noresm2_mm_rcp85[[4]]$log_lambda,
+            ibm_bujeo_noresm2_mm_rcp85[[5]]$log_lambda)))
+
+ibm_results$log_lambda[which(ibm_results$population == "Bujeo" &
+                               ibm_results$scenario == "RCP 4.5")] = 
+  c(t(rbind(ibm_bujeo_control_rcp45[[1]]$log_lambda,
+            ibm_bujeo_control_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_bujeo_control_rcp45[[3]]$log_lambda,
+            # ibm_bujeo_control_rcp45[[4]]$log_lambda,
+            # ibm_bujeo_control_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_bujeo_canesm5_rcp45[[1]]$log_lambda,
+            ibm_bujeo_canesm5_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_bujeo_canesm5_rcp45[[3]]$log_lambda,
+            # ibm_bujeo_canesm5_rcp45[[4]]$log_lambda,
+            # ibm_bujeo_canesm5_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_bujeo_ec_earth3_rcp45[[1]]$log_lambda,
+            ibm_bujeo_ec_earth3_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_bujeo_ec_earth3_rcp45[[3]]$log_lambda,
+            # ibm_bujeo_ec_earth3_rcp45[[4]]$log_lambda,
+            # ibm_bujeo_ec_earth3_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_bujeo_fgoals_g3_rcp45[[1]]$log_lambda,
+            ibm_bujeo_fgoals_g3_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_bujeo_fgoals_g3_rcp45[[3]]$log_lambda,
+            # ibm_bujeo_fgoals_g3_rcp45[[4]]$log_lambda,
+            # ibm_bujeo_fgoals_g3_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_bujeo_gfdl_esm4_rcp45[[1]]$log_lambda,
+            ibm_bujeo_gfdl_esm4_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_bujeo_gfdl_esm4_rcp45[[3]]$log_lambda,
+            # ibm_bujeo_gfdl_esm4_rcp45[[4]]$log_lambda,
+            # ibm_bujeo_gfdl_esm4_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_bujeo_giss_e2_1_g_rcp45[[1]]$log_lambda,
+            ibm_bujeo_giss_e2_1_g_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_bujeo_giss_e2_1_g_rcp45[[3]]$log_lambda,
+            # ibm_bujeo_giss_e2_1_g_rcp45[[4]]$log_lambda,
+            # ibm_bujeo_giss_e2_1_g_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_bujeo_inm_cm4_8_rcp45[[1]]$log_lambda,
+            ibm_bujeo_inm_cm4_8_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_bujeo_inm_cm4_8_rcp45[[3]]$log_lambda,
+            # ibm_bujeo_inm_cm4_8_rcp45[[4]]$log_lambda,
+            # ibm_bujeo_inm_cm4_8_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_bujeo_ipsl_cm6a_lr_rcp45[[1]]$log_lambda,
+            ibm_bujeo_ipsl_cm6a_lr_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_bujeo_ipsl_cm6a_lr_rcp45[[3]]$log_lambda,
+            # ibm_bujeo_ipsl_cm6a_lr_rcp45[[4]]$log_lambda,
+            # ibm_bujeo_ipsl_cm6a_lr_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_bujeo_miroc6_rcp45[[1]]$log_lambda,
+            ibm_bujeo_miroc6_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_bujeo_miroc6_rcp45[[3]]$log_lambda,
+            # ibm_bujeo_miroc6_rcp45[[4]]$log_lambda,
+            # ibm_bujeo_miroc6_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_bujeo_mpi_esm1_2_lr_rcp45[[1]]$log_lambda,
+            ibm_bujeo_mpi_esm1_2_lr_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_bujeo_mpi_esm1_2_lr_rcp45[[3]]$log_lambda,
+            # ibm_bujeo_mpi_esm1_2_lr_rcp45[[4]]$log_lambda,
+            # ibm_bujeo_mpi_esm1_2_lr_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_bujeo_mri_esm2_0_rcp45[[1]]$log_lambda,
+            ibm_bujeo_mri_esm2_0_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_bujeo_mri_esm2_0_rcp45[[3]]$log_lambda,
+            # ibm_bujeo_mri_esm2_0_rcp45[[4]]$log_lambda,
+            # ibm_bujeo_mri_esm2_0_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_bujeo_noresm2_mm_rcp45[[1]]$log_lambda,
+            ibm_bujeo_noresm2_mm_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_bujeo_noresm2_mm_rcp45[[3]]$log_lambda,
+            # ibm_bujeo_noresm2_mm_rcp45[[4]]$log_lambda,
+            # ibm_bujeo_noresm2_mm_rcp45[[5]]$log_lambda
+            )))
+
+
+# Add extinction
+
+ibm_results$extinction[which(ibm_results$population == "Bujeo" &
+                             ibm_results$scenario == "RCP 8.5")] = 
+  c(rep(c(ibm_bujeo_control_rcp85[[1]]$extinction,
+          ibm_bujeo_control_rcp85[[2]]$extinction,
+          ibm_bujeo_control_rcp85[[3]]$extinction,
+          ibm_bujeo_control_rcp85[[4]]$extinction,
+          ibm_bujeo_control_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_bujeo_canesm5_rcp85[[1]]$extinction,
+          ibm_bujeo_canesm5_rcp85[[2]]$extinction,
+          ibm_bujeo_canesm5_rcp85[[3]]$extinction,
+          ibm_bujeo_canesm5_rcp85[[4]]$extinction,
+          ibm_bujeo_canesm5_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_bujeo_ec_earth3_rcp85[[1]]$extinction,
+          ibm_bujeo_ec_earth3_rcp85[[2]]$extinction,
+          ibm_bujeo_ec_earth3_rcp85[[3]]$extinction,
+          ibm_bujeo_ec_earth3_rcp85[[4]]$extinction,
+          ibm_bujeo_ec_earth3_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_bujeo_fgoals_g3_rcp85[[1]]$extinction,
+          ibm_bujeo_fgoals_g3_rcp85[[2]]$extinction,
+          ibm_bujeo_fgoals_g3_rcp85[[3]]$extinction,
+          ibm_bujeo_fgoals_g3_rcp85[[4]]$extinction,
+          ibm_bujeo_fgoals_g3_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_bujeo_gfdl_esm4_rcp85[[1]]$extinction,
+          ibm_bujeo_gfdl_esm4_rcp85[[2]]$extinction,
+          ibm_bujeo_gfdl_esm4_rcp85[[3]]$extinction,
+          ibm_bujeo_gfdl_esm4_rcp85[[4]]$extinction,
+          ibm_bujeo_gfdl_esm4_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_bujeo_giss_e2_1_g_rcp85[[1]]$extinction,
+          ibm_bujeo_giss_e2_1_g_rcp85[[2]]$extinction,
+          ibm_bujeo_giss_e2_1_g_rcp85[[3]]$extinction,
+          ibm_bujeo_giss_e2_1_g_rcp85[[4]]$extinction,
+          ibm_bujeo_giss_e2_1_g_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_bujeo_inm_cm4_8_rcp85[[1]]$extinction,
+          ibm_bujeo_inm_cm4_8_rcp85[[2]]$extinction,
+          ibm_bujeo_inm_cm4_8_rcp85[[3]]$extinction,
+          ibm_bujeo_inm_cm4_8_rcp85[[4]]$extinction,
+          ibm_bujeo_inm_cm4_8_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_bujeo_ipsl_cm6a_lr_rcp85[[1]]$extinction,
+          ibm_bujeo_ipsl_cm6a_lr_rcp85[[2]]$extinction,
+          ibm_bujeo_ipsl_cm6a_lr_rcp85[[3]]$extinction,
+          ibm_bujeo_ipsl_cm6a_lr_rcp85[[4]]$extinction,
+          ibm_bujeo_ipsl_cm6a_lr_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_bujeo_miroc6_rcp85[[1]]$extinction,
+          ibm_bujeo_miroc6_rcp85[[2]]$extinction,
+          ibm_bujeo_miroc6_rcp85[[3]]$extinction,
+          ibm_bujeo_miroc6_rcp85[[4]]$extinction,
+          ibm_bujeo_miroc6_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_bujeo_mpi_esm1_2_lr_rcp85[[1]]$extinction,
+          ibm_bujeo_mpi_esm1_2_lr_rcp85[[2]]$extinction,
+          ibm_bujeo_mpi_esm1_2_lr_rcp85[[3]]$extinction,
+          ibm_bujeo_mpi_esm1_2_lr_rcp85[[4]]$extinction,
+          ibm_bujeo_mpi_esm1_2_lr_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_bujeo_mri_esm2_0_rcp85[[1]]$extinction,
+          ibm_bujeo_mri_esm2_0_rcp85[[2]]$extinction,
+          ibm_bujeo_mri_esm2_0_rcp85[[3]]$extinction,
+          ibm_bujeo_mri_esm2_0_rcp85[[4]]$extinction,
+          ibm_bujeo_mri_esm2_0_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_bujeo_noresm2_mm_rcp85[[1]]$extinction,
+          ibm_bujeo_noresm2_mm_rcp85[[2]]$extinction,
+          ibm_bujeo_noresm2_mm_rcp85[[3]]$extinction,
+          ibm_bujeo_noresm2_mm_rcp85[[4]]$extinction,
+          ibm_bujeo_noresm2_mm_rcp85[[5]]$extinction), each = n_years))
+
+ibm_results$extinction[which(ibm_results$population == "Bujeo" &
+                               ibm_results$scenario == "RCP 4.5")] = 
+  c(rep(c(ibm_bujeo_control_rcp45[[1]]$extinction,
+          ibm_bujeo_control_rcp45[[2]]$extinction
+          # ,
+          # ibm_bujeo_control_rcp45[[3]]$extinction,
+          # ibm_bujeo_control_rcp45[[4]]$extinction,
+          # ibm_bujeo_control_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_bujeo_canesm5_rcp45[[1]]$extinction,
+          ibm_bujeo_canesm5_rcp45[[2]]$extinction
+          # ,
+          # ibm_bujeo_canesm5_rcp45[[3]]$extinction,
+          # ibm_bujeo_canesm5_rcp45[[4]]$extinction,
+          # ibm_bujeo_canesm5_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_bujeo_ec_earth3_rcp45[[1]]$extinction,
+          ibm_bujeo_ec_earth3_rcp45[[2]]$extinction
+          # ,
+          # ibm_bujeo_ec_earth3_rcp45[[3]]$extinction,
+          # ibm_bujeo_ec_earth3_rcp45[[4]]$extinction,
+          # ibm_bujeo_ec_earth3_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_bujeo_fgoals_g3_rcp45[[1]]$extinction,
+          ibm_bujeo_fgoals_g3_rcp45[[2]]$extinction
+          # ,
+          # ibm_bujeo_fgoals_g3_rcp45[[3]]$extinction,
+          # ibm_bujeo_fgoals_g3_rcp45[[4]]$extinction,
+          # ibm_bujeo_fgoals_g3_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_bujeo_gfdl_esm4_rcp45[[1]]$extinction,
+          ibm_bujeo_gfdl_esm4_rcp45[[2]]$extinction
+          # ,
+          # ibm_bujeo_gfdl_esm4_rcp45[[3]]$extinction,
+          # ibm_bujeo_gfdl_esm4_rcp45[[4]]$extinction,
+          # ibm_bujeo_gfdl_esm4_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_bujeo_giss_e2_1_g_rcp45[[1]]$extinction,
+          ibm_bujeo_giss_e2_1_g_rcp45[[2]]$extinction
+          # ,
+          # ibm_bujeo_giss_e2_1_g_rcp45[[3]]$extinction,
+          # ibm_bujeo_giss_e2_1_g_rcp45[[4]]$extinction,
+          # ibm_bujeo_giss_e2_1_g_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_bujeo_inm_cm4_8_rcp45[[1]]$extinction,
+          ibm_bujeo_inm_cm4_8_rcp45[[2]]$extinction
+          # ,
+          # ibm_bujeo_inm_cm4_8_rcp45[[3]]$extinction,
+          # ibm_bujeo_inm_cm4_8_rcp45[[4]]$extinction,
+          # ibm_bujeo_inm_cm4_8_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_bujeo_ipsl_cm6a_lr_rcp45[[1]]$extinction,
+          ibm_bujeo_ipsl_cm6a_lr_rcp45[[2]]$extinction
+          # ,
+          # ibm_bujeo_ipsl_cm6a_lr_rcp45[[3]]$extinction,
+          # ibm_bujeo_ipsl_cm6a_lr_rcp45[[4]]$extinction,
+          # ibm_bujeo_ipsl_cm6a_lr_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_bujeo_miroc6_rcp45[[1]]$extinction,
+          ibm_bujeo_miroc6_rcp45[[2]]$extinction
+          # ,
+          # ibm_bujeo_miroc6_rcp45[[3]]$extinction,
+          # ibm_bujeo_miroc6_rcp45[[4]]$extinction,
+          # ibm_bujeo_miroc6_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_bujeo_mpi_esm1_2_lr_rcp45[[1]]$extinction,
+          ibm_bujeo_mpi_esm1_2_lr_rcp45[[2]]$extinction
+          # ,
+          # ibm_bujeo_mpi_esm1_2_lr_rcp45[[3]]$extinction,
+          # ibm_bujeo_mpi_esm1_2_lr_rcp45[[4]]$extinction,
+          # ibm_bujeo_mpi_esm1_2_lr_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_bujeo_mri_esm2_0_rcp45[[1]]$extinction,
+          ibm_bujeo_mri_esm2_0_rcp45[[2]]$extinction
+          # ,
+          # ibm_bujeo_mri_esm2_0_rcp45[[3]]$extinction,
+          # ibm_bujeo_mri_esm2_0_rcp45[[4]]$extinction,
+          # ibm_bujeo_mri_esm2_0_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_bujeo_noresm2_mm_rcp45[[1]]$extinction,
+          ibm_bujeo_noresm2_mm_rcp45[[2]]$extinction
+          # ,
+          # ibm_bujeo_noresm2_mm_rcp45[[3]]$extinction,
+          # ibm_bujeo_noresm2_mm_rcp45[[4]]$extinction,
+          # ibm_bujeo_noresm2_mm_rcp45[[5]]$extinction
+          ), each = n_years))
+
+
+rm(list = grep("ibm_bujeo", ls() , value = TRUE, invert = FALSE))
+
+
+for(i in 1:length(list.files("Output/Projections/")[grep("Anthropogenic_MonteraTorero", list.files("Output/Projections/"))])){
+
+  print(i)
+
+  load(paste0("Output/Projections/", list.files("Output/Projections/")[grep("Anthropogenic_MonteraTorero", list.files("Output/Projections/"))][i]))
+}
+
+ibm_monteratorero_canesm5_rcp85 = ibm_monteratorero_canesm5
+ibm_monteratorero_control_rcp85 = ibm_monteratorero_control
+ibm_monteratorero_ec_earth3_rcp85 = ibm_monteratorero_ec_earth3
+ibm_monteratorero_fgoals_g3_rcp85 = ibm_monteratorero_fgoals_g3
+ibm_monteratorero_gfdl_esm4_rcp85 = ibm_monteratorero_gfdl_esm4
+ibm_monteratorero_giss_e2_1_g_rcp85 = ibm_monteratorero_giss_e2_1_g
+ibm_monteratorero_inm_cm4_8_rcp85 = ibm_monteratorero_inm_cm4_8
+ibm_monteratorero_ipsl_cm6a_lr_rcp85 = ibm_monteratorero_ipsl_cm6a_lr
+ibm_monteratorero_miroc6_rcp85 = ibm_monteratorero_miroc6
+ibm_monteratorero_mpi_esm1_2_lr_rcp85 = ibm_monteratorero_mpi_esm1_2_lr
+ibm_monteratorero_mri_esm2_0_rcp85 = ibm_monteratorero_mri_esm2_0
+ibm_monteratorero_noresm2_mm_rcp85 = ibm_monteratorero_noresm2_mm
+
+
+# Add log lambda (per simulation = per row)
+
+ibm_results$log_lambda[which(ibm_results$population == "MonteraTorero" &
+                             ibm_results$scenario == "RCP 8.5")] =
+  c(t(rbind(ibm_monteratorero_control_rcp85[[1]]$log_lambda,
+            ibm_monteratorero_control_rcp85[[2]]$log_lambda,
+            ibm_monteratorero_control_rcp85[[3]]$log_lambda,
+            ibm_monteratorero_control_rcp85[[4]]$log_lambda,
+            ibm_monteratorero_control_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_monteratorero_canesm5_rcp85[[1]]$log_lambda,
+            ibm_monteratorero_canesm5_rcp85[[2]]$log_lambda,
+            ibm_monteratorero_canesm5_rcp85[[3]]$log_lambda,
+            ibm_monteratorero_canesm5_rcp85[[4]]$log_lambda,
+            ibm_monteratorero_canesm5_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_monteratorero_ec_earth3_rcp85[[1]]$log_lambda,
+            ibm_monteratorero_ec_earth3_rcp85[[2]]$log_lambda,
+            ibm_monteratorero_ec_earth3_rcp85[[3]]$log_lambda,
+            ibm_monteratorero_ec_earth3_rcp85[[4]]$log_lambda,
+            ibm_monteratorero_ec_earth3_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_monteratorero_fgoals_g3_rcp85[[1]]$log_lambda,
+            ibm_monteratorero_fgoals_g3_rcp85[[2]]$log_lambda,
+            ibm_monteratorero_fgoals_g3_rcp85[[3]]$log_lambda,
+            ibm_monteratorero_fgoals_g3_rcp85[[4]]$log_lambda,
+            ibm_monteratorero_fgoals_g3_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_monteratorero_gfdl_esm4_rcp85[[1]]$log_lambda,
+            ibm_monteratorero_gfdl_esm4_rcp85[[2]]$log_lambda,
+            ibm_monteratorero_gfdl_esm4_rcp85[[3]]$log_lambda,
+            ibm_monteratorero_gfdl_esm4_rcp85[[4]]$log_lambda,
+            ibm_monteratorero_gfdl_esm4_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_monteratorero_giss_e2_1_g_rcp85[[1]]$log_lambda,
+            ibm_monteratorero_giss_e2_1_g_rcp85[[2]]$log_lambda,
+            ibm_monteratorero_giss_e2_1_g_rcp85[[3]]$log_lambda,
+            ibm_monteratorero_giss_e2_1_g_rcp85[[4]]$log_lambda,
+            ibm_monteratorero_giss_e2_1_g_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_monteratorero_inm_cm4_8_rcp85[[1]]$log_lambda,
+            ibm_monteratorero_inm_cm4_8_rcp85[[2]]$log_lambda,
+            ibm_monteratorero_inm_cm4_8_rcp85[[3]]$log_lambda,
+            ibm_monteratorero_inm_cm4_8_rcp85[[4]]$log_lambda,
+            ibm_monteratorero_inm_cm4_8_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_monteratorero_ipsl_cm6a_lr_rcp85[[1]]$log_lambda,
+            ibm_monteratorero_ipsl_cm6a_lr_rcp85[[2]]$log_lambda,
+            ibm_monteratorero_ipsl_cm6a_lr_rcp85[[3]]$log_lambda,
+            ibm_monteratorero_ipsl_cm6a_lr_rcp85[[4]]$log_lambda,
+            ibm_monteratorero_ipsl_cm6a_lr_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_monteratorero_miroc6_rcp85[[1]]$log_lambda,
+            ibm_monteratorero_miroc6_rcp85[[2]]$log_lambda,
+            ibm_monteratorero_miroc6_rcp85[[3]]$log_lambda,
+            ibm_monteratorero_miroc6_rcp85[[4]]$log_lambda,
+            ibm_monteratorero_miroc6_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_monteratorero_mpi_esm1_2_lr_rcp85[[1]]$log_lambda,
+            ibm_monteratorero_mpi_esm1_2_lr_rcp85[[2]]$log_lambda,
+            ibm_monteratorero_mpi_esm1_2_lr_rcp85[[3]]$log_lambda,
+            ibm_monteratorero_mpi_esm1_2_lr_rcp85[[4]]$log_lambda,
+            ibm_monteratorero_mpi_esm1_2_lr_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_monteratorero_mri_esm2_0_rcp85[[1]]$log_lambda,
+            ibm_monteratorero_mri_esm2_0_rcp85[[2]]$log_lambda,
+            ibm_monteratorero_mri_esm2_0_rcp85[[3]]$log_lambda,
+            ibm_monteratorero_mri_esm2_0_rcp85[[4]]$log_lambda,
+            ibm_monteratorero_mri_esm2_0_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_monteratorero_noresm2_mm_rcp85[[1]]$log_lambda,
+            ibm_monteratorero_noresm2_mm_rcp85[[2]]$log_lambda,
+            ibm_monteratorero_noresm2_mm_rcp85[[3]]$log_lambda,
+            ibm_monteratorero_noresm2_mm_rcp85[[4]]$log_lambda,
+            ibm_monteratorero_noresm2_mm_rcp85[[5]]$log_lambda)))
+
+ibm_results$log_lambda[which(ibm_results$population == "MonteraTorero" &
+                               ibm_results$scenario == "RCP 4.5")] =
+  c(t(rbind(ibm_monteratorero_control_rcp45[[1]]$log_lambda,
+            ibm_monteratorero_control_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_monteratorero_control_rcp45[[3]]$log_lambda,
+            # ibm_monteratorero_control_rcp45[[4]]$log_lambda,
+            # ibm_monteratorero_control_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_monteratorero_canesm5_rcp45[[1]]$log_lambda,
+            ibm_monteratorero_canesm5_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_monteratorero_canesm5_rcp45[[3]]$log_lambda,
+            # ibm_monteratorero_canesm5_rcp45[[4]]$log_lambda,
+            # ibm_monteratorero_canesm5_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_monteratorero_ec_earth3_rcp45[[1]]$log_lambda,
+            ibm_monteratorero_ec_earth3_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_monteratorero_ec_earth3_rcp45[[3]]$log_lambda,
+            # ibm_monteratorero_ec_earth3_rcp45[[4]]$log_lambda,
+            # ibm_monteratorero_ec_earth3_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_monteratorero_fgoals_g3_rcp45[[1]]$log_lambda,
+            ibm_monteratorero_fgoals_g3_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_monteratorero_fgoals_g3_rcp45[[3]]$log_lambda,
+            # ibm_monteratorero_fgoals_g3_rcp45[[4]]$log_lambda,
+            # ibm_monteratorero_fgoals_g3_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_monteratorero_gfdl_esm4_rcp45[[1]]$log_lambda,
+            ibm_monteratorero_gfdl_esm4_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_monteratorero_gfdl_esm4_rcp45[[3]]$log_lambda,
+            # ibm_monteratorero_gfdl_esm4_rcp45[[4]]$log_lambda,
+            # ibm_monteratorero_gfdl_esm4_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_monteratorero_giss_e2_1_g_rcp45[[1]]$log_lambda,
+            ibm_monteratorero_giss_e2_1_g_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_monteratorero_giss_e2_1_g_rcp45[[3]]$log_lambda,
+            # ibm_monteratorero_giss_e2_1_g_rcp45[[4]]$log_lambda,
+            # ibm_monteratorero_giss_e2_1_g_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_monteratorero_inm_cm4_8_rcp45[[1]]$log_lambda,
+            ibm_monteratorero_inm_cm4_8_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_monteratorero_inm_cm4_8_rcp45[[3]]$log_lambda,
+            # ibm_monteratorero_inm_cm4_8_rcp45[[4]]$log_lambda,
+            # ibm_monteratorero_inm_cm4_8_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_monteratorero_ipsl_cm6a_lr_rcp45[[1]]$log_lambda,
+            ibm_monteratorero_ipsl_cm6a_lr_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_monteratorero_ipsl_cm6a_lr_rcp45[[3]]$log_lambda,
+            # ibm_monteratorero_ipsl_cm6a_lr_rcp45[[4]]$log_lambda,
+            # ibm_monteratorero_ipsl_cm6a_lr_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_monteratorero_miroc6_rcp45[[1]]$log_lambda,
+            ibm_monteratorero_miroc6_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_monteratorero_miroc6_rcp45[[3]]$log_lambda,
+            # ibm_monteratorero_miroc6_rcp45[[4]]$log_lambda,
+            # ibm_monteratorero_miroc6_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_monteratorero_mpi_esm1_2_lr_rcp45[[1]]$log_lambda,
+            ibm_monteratorero_mpi_esm1_2_lr_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_monteratorero_mpi_esm1_2_lr_rcp45[[3]]$log_lambda,
+            # ibm_monteratorero_mpi_esm1_2_lr_rcp45[[4]]$log_lambda,
+            # ibm_monteratorero_mpi_esm1_2_lr_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_monteratorero_mri_esm2_0_rcp45[[1]]$log_lambda,
+            ibm_monteratorero_mri_esm2_0_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_monteratorero_mri_esm2_0_rcp45[[3]]$log_lambda,
+            # ibm_monteratorero_mri_esm2_0_rcp45[[4]]$log_lambda,
+            # ibm_monteratorero_mri_esm2_0_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_monteratorero_noresm2_mm_rcp45[[1]]$log_lambda,
+            ibm_monteratorero_noresm2_mm_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_monteratorero_noresm2_mm_rcp45[[3]]$log_lambda,
+            # ibm_monteratorero_noresm2_mm_rcp45[[4]]$log_lambda,
+            # ibm_monteratorero_noresm2_mm_rcp45[[5]]$log_lambda
+            )))
+
+
+# Add extinction
+
+ibm_results$extinction[which(ibm_results$population == "MonteraTorero" &
+                               ibm_results$scenario == "RCP 8.5")] =
+  c(rep(c(ibm_monteratorero_control_rcp85[[1]]$extinction,
+          ibm_monteratorero_control_rcp85[[2]]$extinction,
+          ibm_monteratorero_control_rcp85[[3]]$extinction,
+          ibm_monteratorero_control_rcp85[[4]]$extinction,
+          ibm_monteratorero_control_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_monteratorero_canesm5_rcp85[[1]]$extinction,
+          ibm_monteratorero_canesm5_rcp85[[2]]$extinction,
+          ibm_monteratorero_canesm5_rcp85[[3]]$extinction,
+          ibm_monteratorero_canesm5_rcp85[[4]]$extinction,
+          ibm_monteratorero_canesm5_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_monteratorero_ec_earth3_rcp85[[1]]$extinction,
+          ibm_monteratorero_ec_earth3_rcp85[[2]]$extinction,
+          ibm_monteratorero_ec_earth3_rcp85[[3]]$extinction,
+          ibm_monteratorero_ec_earth3_rcp85[[4]]$extinction,
+          ibm_monteratorero_ec_earth3_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_monteratorero_fgoals_g3_rcp85[[1]]$extinction,
+          ibm_monteratorero_fgoals_g3_rcp85[[2]]$extinction,
+          ibm_monteratorero_fgoals_g3_rcp85[[3]]$extinction,
+          ibm_monteratorero_fgoals_g3_rcp85[[4]]$extinction,
+          ibm_monteratorero_fgoals_g3_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_monteratorero_gfdl_esm4_rcp85[[1]]$extinction,
+          ibm_monteratorero_gfdl_esm4_rcp85[[2]]$extinction,
+          ibm_monteratorero_gfdl_esm4_rcp85[[3]]$extinction,
+          ibm_monteratorero_gfdl_esm4_rcp85[[4]]$extinction,
+          ibm_monteratorero_gfdl_esm4_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_monteratorero_giss_e2_1_g_rcp85[[1]]$extinction,
+          ibm_monteratorero_giss_e2_1_g_rcp85[[2]]$extinction,
+          ibm_monteratorero_giss_e2_1_g_rcp85[[3]]$extinction,
+          ibm_monteratorero_giss_e2_1_g_rcp85[[4]]$extinction,
+          ibm_monteratorero_giss_e2_1_g_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_monteratorero_inm_cm4_8_rcp85[[1]]$extinction,
+          ibm_monteratorero_inm_cm4_8_rcp85[[2]]$extinction,
+          ibm_monteratorero_inm_cm4_8_rcp85[[3]]$extinction,
+          ibm_monteratorero_inm_cm4_8_rcp85[[4]]$extinction,
+          ibm_monteratorero_inm_cm4_8_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_monteratorero_ipsl_cm6a_lr_rcp85[[1]]$extinction,
+          ibm_monteratorero_ipsl_cm6a_lr_rcp85[[2]]$extinction,
+          ibm_monteratorero_ipsl_cm6a_lr_rcp85[[3]]$extinction,
+          ibm_monteratorero_ipsl_cm6a_lr_rcp85[[4]]$extinction,
+          ibm_monteratorero_ipsl_cm6a_lr_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_monteratorero_miroc6_rcp85[[1]]$extinction,
+          ibm_monteratorero_miroc6_rcp85[[2]]$extinction,
+          ibm_monteratorero_miroc6_rcp85[[3]]$extinction,
+          ibm_monteratorero_miroc6_rcp85[[4]]$extinction,
+          ibm_monteratorero_miroc6_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_monteratorero_mpi_esm1_2_lr_rcp85[[1]]$extinction,
+          ibm_monteratorero_mpi_esm1_2_lr_rcp85[[2]]$extinction,
+          ibm_monteratorero_mpi_esm1_2_lr_rcp85[[3]]$extinction,
+          ibm_monteratorero_mpi_esm1_2_lr_rcp85[[4]]$extinction,
+          ibm_monteratorero_mpi_esm1_2_lr_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_monteratorero_mri_esm2_0_rcp85[[1]]$extinction,
+          ibm_monteratorero_mri_esm2_0_rcp85[[2]]$extinction,
+          ibm_monteratorero_mri_esm2_0_rcp85[[3]]$extinction,
+          ibm_monteratorero_mri_esm2_0_rcp85[[4]]$extinction,
+          ibm_monteratorero_mri_esm2_0_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_monteratorero_noresm2_mm_rcp85[[1]]$extinction,
+          ibm_monteratorero_noresm2_mm_rcp85[[2]]$extinction,
+          ibm_monteratorero_noresm2_mm_rcp85[[3]]$extinction,
+          ibm_monteratorero_noresm2_mm_rcp85[[4]]$extinction,
+          ibm_monteratorero_noresm2_mm_rcp85[[5]]$extinction), each = n_years))
+
+ibm_results$extinction[which(ibm_results$population == "MonteraTorero" &
+                               ibm_results$scenario == "RCP 4.5")] =
+  c(rep(c(ibm_monteratorero_control_rcp45[[1]]$extinction,
+          ibm_monteratorero_control_rcp45[[2]]$extinction
+          # ,
+          # ibm_monteratorero_control_rcp45[[3]]$extinction,
+          # ibm_monteratorero_control_rcp45[[4]]$extinction,
+          # ibm_monteratorero_control_rcp45[[5]]$extinction
+          ), each = n_years),
+  rep(c(ibm_monteratorero_canesm5_rcp45[[1]]$extinction,
+        ibm_monteratorero_canesm5_rcp45[[2]]$extinction
+        # ,
+        # ibm_monteratorero_canesm5_rcp45[[3]]$extinction,
+        # ibm_monteratorero_canesm5_rcp45[[4]]$extinction,
+        # ibm_monteratorero_canesm5_rcp45[[5]]$extinction
+        ), each = n_years),
+  rep(c(ibm_monteratorero_ec_earth3_rcp45[[1]]$extinction,
+        ibm_monteratorero_ec_earth3_rcp45[[2]]$extinction
+        # ,
+        # ibm_monteratorero_ec_earth3_rcp45[[3]]$extinction,
+        # ibm_monteratorero_ec_earth3_rcp45[[4]]$extinction,
+        # ibm_monteratorero_ec_earth3_rcp45[[5]]$extinction
+        ), each = n_years),
+  rep(c(ibm_monteratorero_fgoals_g3_rcp45[[1]]$extinction,
+        ibm_monteratorero_fgoals_g3_rcp45[[2]]$extinction
+        # ,
+        # ibm_monteratorero_fgoals_g3_rcp45[[3]]$extinction,
+        # ibm_monteratorero_fgoals_g3_rcp45[[4]]$extinction,
+        # ibm_monteratorero_fgoals_g3_rcp45[[5]]$extinction
+        ), each = n_years),
+  rep(c(ibm_monteratorero_gfdl_esm4_rcp45[[1]]$extinction,
+        ibm_monteratorero_gfdl_esm4_rcp45[[2]]$extinction
+        # ,
+        # ibm_monteratorero_gfdl_esm4_rcp45[[3]]$extinction,
+        # ibm_monteratorero_gfdl_esm4_rcp45[[4]]$extinction,
+        # ibm_monteratorero_gfdl_esm4_rcp45[[5]]$extinction
+        ), each = n_years),
+  rep(c(ibm_monteratorero_giss_e2_1_g_rcp45[[1]]$extinction,
+        ibm_monteratorero_giss_e2_1_g_rcp45[[2]]$extinction
+        # ,
+        # ibm_monteratorero_giss_e2_1_g_rcp45[[3]]$extinction,
+        # ibm_monteratorero_giss_e2_1_g_rcp45[[4]]$extinction,
+        # ibm_monteratorero_giss_e2_1_g_rcp45[[5]]$extinction
+        ), each = n_years),
+  rep(c(ibm_monteratorero_inm_cm4_8_rcp45[[1]]$extinction,
+        ibm_monteratorero_inm_cm4_8_rcp45[[2]]$extinction
+        # ,
+        # ibm_monteratorero_inm_cm4_8_rcp45[[3]]$extinction,
+        # ibm_monteratorero_inm_cm4_8_rcp45[[4]]$extinction,
+        # ibm_monteratorero_inm_cm4_8_rcp45[[5]]$extinction
+        ), each = n_years),
+  rep(c(ibm_monteratorero_ipsl_cm6a_lr_rcp45[[1]]$extinction,
+        ibm_monteratorero_ipsl_cm6a_lr_rcp45[[2]]$extinction
+        # ,
+        # ibm_monteratorero_ipsl_cm6a_lr_rcp45[[3]]$extinction,
+        # ibm_monteratorero_ipsl_cm6a_lr_rcp45[[4]]$extinction,
+        # ibm_monteratorero_ipsl_cm6a_lr_rcp45[[5]]$extinction
+        ), each = n_years),
+  rep(c(ibm_monteratorero_miroc6_rcp45[[1]]$extinction,
+        ibm_monteratorero_miroc6_rcp45[[2]]$extinction
+        # ,
+        # ibm_monteratorero_miroc6_rcp45[[3]]$extinction,
+        # ibm_monteratorero_miroc6_rcp45[[4]]$extinction,
+        # ibm_monteratorero_miroc6_rcp45[[5]]$extinction
+        ), each = n_years),
+  rep(c(ibm_monteratorero_mpi_esm1_2_lr_rcp45[[1]]$extinction,
+        ibm_monteratorero_mpi_esm1_2_lr_rcp45[[2]]$extinction
+        # ,
+        # ibm_monteratorero_mpi_esm1_2_lr_rcp45[[3]]$extinction,
+        # ibm_monteratorero_mpi_esm1_2_lr_rcp45[[4]]$extinction,
+        # ibm_monteratorero_mpi_esm1_2_lr_rcp45[[5]]$extinction
+        ), each = n_years),
+  rep(c(ibm_monteratorero_mri_esm2_0_rcp45[[1]]$extinction,
+        ibm_monteratorero_mri_esm2_0_rcp45[[2]]$extinction
+        # ,
+        # ibm_monteratorero_mri_esm2_0_rcp45[[3]]$extinction,
+        # ibm_monteratorero_mri_esm2_0_rcp45[[4]]$extinction,
+        # ibm_monteratorero_mri_esm2_0_rcp45[[5]]$extinction
+        ), each = n_years),
+  rep(c(ibm_monteratorero_noresm2_mm_rcp45[[1]]$extinction,
+        ibm_monteratorero_noresm2_mm_rcp45[[2]]$extinction
+        # ,
+        # ibm_monteratorero_noresm2_mm_rcp45[[3]]$extinction,
+        # ibm_monteratorero_noresm2_mm_rcp45[[4]]$extinction,
+        # ibm_monteratorero_noresm2_mm_rcp45[[5]]$extinction
+        ), each = n_years))
+
+
+rm(list = grep("ibm_monteratorero", ls() , value = TRUE, invert = FALSE))
+
+
+for(i in 1:length(list.files("Output/Projections/")[grep("Anthropogenic_SCarbDist", list.files("Output/Projections/"))])){
+  
+  print(i)
+  
+  load(paste0("Output/Projections/", list.files("Output/Projections/")[grep("Anthropogenic_SCarbDist", list.files("Output/Projections/"))][i]))
+}
+
+ibm_scarbdist_canesm5_rcp85 = ibm_scarbdist_canesm5
+ibm_scarbdist_control_rcp85 = ibm_scarbdist_control
+ibm_scarbdist_ec_earth3_rcp85 = ibm_scarbdist_ec_earth3
+ibm_scarbdist_fgoals_g3_rcp85 = ibm_scarbdist_fgoals_g3
+ibm_scarbdist_gfdl_esm4_rcp85 = ibm_scarbdist_gfdl_esm4
+ibm_scarbdist_giss_e2_1_g_rcp85 = ibm_scarbdist_giss_e2_1_g
+ibm_scarbdist_inm_cm4_8_rcp85 = ibm_scarbdist_inm_cm4_8
+ibm_scarbdist_ipsl_cm6a_lr_rcp85 = ibm_scarbdist_ipsl_cm6a_lr
+ibm_scarbdist_miroc6_rcp85 = ibm_scarbdist_miroc6
+ibm_scarbdist_mpi_esm1_2_lr_rcp85 = ibm_scarbdist_mpi_esm1_2_lr
+ibm_scarbdist_mri_esm2_0_rcp85 = ibm_scarbdist_mri_esm2_0
+ibm_scarbdist_noresm2_mm_rcp85 = ibm_scarbdist_noresm2_mm
+
+
+# Add log lambda (per simulation = per row)
+
+ibm_results$log_lambda[which(ibm_results$population == "SCarbDist" &
+                             ibm_results$scenario == "RCP 8.5")] = 
+  c(t(rbind(ibm_scarbdist_control_rcp85[[1]]$log_lambda,
+            ibm_scarbdist_control_rcp85[[2]]$log_lambda,
+            ibm_scarbdist_control_rcp85[[3]]$log_lambda,
+            ibm_scarbdist_control_rcp85[[4]]$log_lambda,
+            ibm_scarbdist_control_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_scarbdist_canesm5_rcp85[[1]]$log_lambda,
+            ibm_scarbdist_canesm5_rcp85[[2]]$log_lambda,
+            ibm_scarbdist_canesm5_rcp85[[3]]$log_lambda,
+            ibm_scarbdist_canesm5_rcp85[[4]]$log_lambda,
+            ibm_scarbdist_canesm5_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_scarbdist_ec_earth3_rcp85[[1]]$log_lambda,
+            ibm_scarbdist_ec_earth3_rcp85[[2]]$log_lambda,
+            ibm_scarbdist_ec_earth3_rcp85[[3]]$log_lambda,
+            ibm_scarbdist_ec_earth3_rcp85[[4]]$log_lambda,
+            ibm_scarbdist_ec_earth3_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_scarbdist_fgoals_g3_rcp85[[1]]$log_lambda,
+            ibm_scarbdist_fgoals_g3_rcp85[[2]]$log_lambda,
+            ibm_scarbdist_fgoals_g3_rcp85[[3]]$log_lambda,
+            ibm_scarbdist_fgoals_g3_rcp85[[4]]$log_lambda,
+            ibm_scarbdist_fgoals_g3_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_scarbdist_gfdl_esm4_rcp85[[1]]$log_lambda,
+            ibm_scarbdist_gfdl_esm4_rcp85[[2]]$log_lambda,
+            ibm_scarbdist_gfdl_esm4_rcp85[[3]]$log_lambda,
+            ibm_scarbdist_gfdl_esm4_rcp85[[4]]$log_lambda,
+            ibm_scarbdist_gfdl_esm4_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_scarbdist_giss_e2_1_g_rcp85[[1]]$log_lambda,
+            ibm_scarbdist_giss_e2_1_g_rcp85[[2]]$log_lambda,
+            ibm_scarbdist_giss_e2_1_g_rcp85[[3]]$log_lambda,
+            ibm_scarbdist_giss_e2_1_g_rcp85[[4]]$log_lambda,
+            ibm_scarbdist_giss_e2_1_g_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_scarbdist_inm_cm4_8_rcp85[[1]]$log_lambda,
+            ibm_scarbdist_inm_cm4_8_rcp85[[2]]$log_lambda,
+            ibm_scarbdist_inm_cm4_8_rcp85[[3]]$log_lambda,
+            ibm_scarbdist_inm_cm4_8_rcp85[[4]]$log_lambda,
+            ibm_scarbdist_inm_cm4_8_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_scarbdist_ipsl_cm6a_lr_rcp85[[1]]$log_lambda,
+            ibm_scarbdist_ipsl_cm6a_lr_rcp85[[2]]$log_lambda,
+            ibm_scarbdist_ipsl_cm6a_lr_rcp85[[3]]$log_lambda,
+            ibm_scarbdist_ipsl_cm6a_lr_rcp85[[4]]$log_lambda,
+            ibm_scarbdist_ipsl_cm6a_lr_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_scarbdist_miroc6_rcp85[[1]]$log_lambda,
+            ibm_scarbdist_miroc6_rcp85[[2]]$log_lambda,
+            ibm_scarbdist_miroc6_rcp85[[3]]$log_lambda,
+            ibm_scarbdist_miroc6_rcp85[[4]]$log_lambda,
+            ibm_scarbdist_miroc6_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_scarbdist_mpi_esm1_2_lr_rcp85[[1]]$log_lambda,
+            ibm_scarbdist_mpi_esm1_2_lr_rcp85[[2]]$log_lambda,
+            ibm_scarbdist_mpi_esm1_2_lr_rcp85[[3]]$log_lambda,
+            ibm_scarbdist_mpi_esm1_2_lr_rcp85[[4]]$log_lambda,
+            ibm_scarbdist_mpi_esm1_2_lr_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_scarbdist_mri_esm2_0_rcp85[[1]]$log_lambda,
+            ibm_scarbdist_mri_esm2_0_rcp85[[2]]$log_lambda,
+            ibm_scarbdist_mri_esm2_0_rcp85[[3]]$log_lambda,
+            ibm_scarbdist_mri_esm2_0_rcp85[[4]]$log_lambda,
+            ibm_scarbdist_mri_esm2_0_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_scarbdist_noresm2_mm_rcp85[[1]]$log_lambda,
+            ibm_scarbdist_noresm2_mm_rcp85[[2]]$log_lambda,
+            ibm_scarbdist_noresm2_mm_rcp85[[3]]$log_lambda,
+            ibm_scarbdist_noresm2_mm_rcp85[[4]]$log_lambda,
+            ibm_scarbdist_noresm2_mm_rcp85[[5]]$log_lambda)))
+
+ibm_results$log_lambda[which(ibm_results$population == "SCarbDist" &
+                               ibm_results$scenario == "RCP 4.5")] = 
+  c(t(rbind(ibm_scarbdist_control_rcp45[[1]]$log_lambda,
+            ibm_scarbdist_control_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_scarbdist_control_rcp45[[3]]$log_lambda,
+            # ibm_scarbdist_control_rcp45[[4]]$log_lambda,
+            # ibm_scarbdist_control_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_scarbdist_canesm5_rcp45[[1]]$log_lambda,
+            ibm_scarbdist_canesm5_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_scarbdist_canesm5_rcp45[[3]]$log_lambda,
+            # ibm_scarbdist_canesm5_rcp45[[4]]$log_lambda,
+            # ibm_scarbdist_canesm5_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_scarbdist_ec_earth3_rcp45[[1]]$log_lambda,
+            ibm_scarbdist_ec_earth3_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_scarbdist_ec_earth3_rcp45[[3]]$log_lambda,
+            # ibm_scarbdist_ec_earth3_rcp45[[4]]$log_lambda,
+            # ibm_scarbdist_ec_earth3_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_scarbdist_fgoals_g3_rcp45[[1]]$log_lambda,
+            ibm_scarbdist_fgoals_g3_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_scarbdist_fgoals_g3_rcp45[[3]]$log_lambda,
+            # ibm_scarbdist_fgoals_g3_rcp45[[4]]$log_lambda,
+            # ibm_scarbdist_fgoals_g3_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_scarbdist_gfdl_esm4_rcp45[[1]]$log_lambda,
+            ibm_scarbdist_gfdl_esm4_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_scarbdist_gfdl_esm4_rcp45[[3]]$log_lambda,
+            # ibm_scarbdist_gfdl_esm4_rcp45[[4]]$log_lambda,
+            # ibm_scarbdist_gfdl_esm4_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_scarbdist_giss_e2_1_g_rcp45[[1]]$log_lambda,
+            ibm_scarbdist_giss_e2_1_g_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_scarbdist_giss_e2_1_g_rcp45[[3]]$log_lambda,
+            # ibm_scarbdist_giss_e2_1_g_rcp45[[4]]$log_lambda,
+            # ibm_scarbdist_giss_e2_1_g_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_scarbdist_inm_cm4_8_rcp45[[1]]$log_lambda,
+            ibm_scarbdist_inm_cm4_8_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_scarbdist_inm_cm4_8_rcp45[[3]]$log_lambda,
+            # ibm_scarbdist_inm_cm4_8_rcp45[[4]]$log_lambda,
+            # ibm_scarbdist_inm_cm4_8_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_scarbdist_ipsl_cm6a_lr_rcp45[[1]]$log_lambda,
+            ibm_scarbdist_ipsl_cm6a_lr_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_scarbdist_ipsl_cm6a_lr_rcp45[[3]]$log_lambda,
+            # ibm_scarbdist_ipsl_cm6a_lr_rcp45[[4]]$log_lambda,
+            # ibm_scarbdist_ipsl_cm6a_lr_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_scarbdist_miroc6_rcp45[[1]]$log_lambda,
+            ibm_scarbdist_miroc6_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_scarbdist_miroc6_rcp45[[3]]$log_lambda,
+            # ibm_scarbdist_miroc6_rcp45[[4]]$log_lambda,
+            # ibm_scarbdist_miroc6_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_scarbdist_mpi_esm1_2_lr_rcp45[[1]]$log_lambda,
+            ibm_scarbdist_mpi_esm1_2_lr_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_scarbdist_mpi_esm1_2_lr_rcp45[[3]]$log_lambda,
+            # ibm_scarbdist_mpi_esm1_2_lr_rcp45[[4]]$log_lambda,
+            # ibm_scarbdist_mpi_esm1_2_lr_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_scarbdist_mri_esm2_0_rcp45[[1]]$log_lambda,
+            ibm_scarbdist_mri_esm2_0_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_scarbdist_mri_esm2_0_rcp45[[3]]$log_lambda,
+            # ibm_scarbdist_mri_esm2_0_rcp45[[4]]$log_lambda,
+            # ibm_scarbdist_mri_esm2_0_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_scarbdist_noresm2_mm_rcp45[[1]]$log_lambda,
+            ibm_scarbdist_noresm2_mm_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_scarbdist_noresm2_mm_rcp45[[3]]$log_lambda,
+            # ibm_scarbdist_noresm2_mm_rcp45[[4]]$log_lambda,
+            # ibm_scarbdist_noresm2_mm_rcp45[[5]]$log_lambda
+            )))
+
+
+# Add extinction
+
+ibm_results$extinction[which(ibm_results$population == "SCarbDist" &
+                             ibm_results$scenario == "RCP 8.5")] = 
+  c(rep(c(ibm_scarbdist_control_rcp85[[1]]$extinction,
+          ibm_scarbdist_control_rcp85[[2]]$extinction,
+          ibm_scarbdist_control_rcp85[[3]]$extinction,
+          ibm_scarbdist_control_rcp85[[4]]$extinction,
+          ibm_scarbdist_control_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_scarbdist_canesm5_rcp85[[1]]$extinction,
+          ibm_scarbdist_canesm5_rcp85[[2]]$extinction,
+          ibm_scarbdist_canesm5_rcp85[[3]]$extinction,
+          ibm_scarbdist_canesm5_rcp85[[4]]$extinction,
+          ibm_scarbdist_canesm5_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_scarbdist_ec_earth3_rcp85[[1]]$extinction,
+          ibm_scarbdist_ec_earth3_rcp85[[2]]$extinction,
+          ibm_scarbdist_ec_earth3_rcp85[[3]]$extinction,
+          ibm_scarbdist_ec_earth3_rcp85[[4]]$extinction,
+          ibm_scarbdist_ec_earth3_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_scarbdist_fgoals_g3_rcp85[[1]]$extinction,
+          ibm_scarbdist_fgoals_g3_rcp85[[2]]$extinction,
+          ibm_scarbdist_fgoals_g3_rcp85[[3]]$extinction,
+          ibm_scarbdist_fgoals_g3_rcp85[[4]]$extinction,
+          ibm_scarbdist_fgoals_g3_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_scarbdist_gfdl_esm4_rcp85[[1]]$extinction,
+          ibm_scarbdist_gfdl_esm4_rcp85[[2]]$extinction,
+          ibm_scarbdist_gfdl_esm4_rcp85[[3]]$extinction,
+          ibm_scarbdist_gfdl_esm4_rcp85[[4]]$extinction,
+          ibm_scarbdist_gfdl_esm4_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_scarbdist_giss_e2_1_g_rcp85[[1]]$extinction,
+          ibm_scarbdist_giss_e2_1_g_rcp85[[2]]$extinction,
+          ibm_scarbdist_giss_e2_1_g_rcp85[[3]]$extinction,
+          ibm_scarbdist_giss_e2_1_g_rcp85[[4]]$extinction,
+          ibm_scarbdist_giss_e2_1_g_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_scarbdist_inm_cm4_8_rcp85[[1]]$extinction,
+          ibm_scarbdist_inm_cm4_8_rcp85[[2]]$extinction,
+          ibm_scarbdist_inm_cm4_8_rcp85[[3]]$extinction,
+          ibm_scarbdist_inm_cm4_8_rcp85[[4]]$extinction,
+          ibm_scarbdist_inm_cm4_8_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_scarbdist_ipsl_cm6a_lr_rcp85[[1]]$extinction,
+          ibm_scarbdist_ipsl_cm6a_lr_rcp85[[2]]$extinction,
+          ibm_scarbdist_ipsl_cm6a_lr_rcp85[[3]]$extinction,
+          ibm_scarbdist_ipsl_cm6a_lr_rcp85[[4]]$extinction,
+          ibm_scarbdist_ipsl_cm6a_lr_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_scarbdist_miroc6_rcp85[[1]]$extinction,
+          ibm_scarbdist_miroc6_rcp85[[2]]$extinction,
+          ibm_scarbdist_miroc6_rcp85[[3]]$extinction,
+          ibm_scarbdist_miroc6_rcp85[[4]]$extinction,
+          ibm_scarbdist_miroc6_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_scarbdist_mpi_esm1_2_lr_rcp85[[1]]$extinction,
+          ibm_scarbdist_mpi_esm1_2_lr_rcp85[[2]]$extinction,
+          ibm_scarbdist_mpi_esm1_2_lr_rcp85[[3]]$extinction,
+          ibm_scarbdist_mpi_esm1_2_lr_rcp85[[4]]$extinction,
+          ibm_scarbdist_mpi_esm1_2_lr_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_scarbdist_mri_esm2_0_rcp85[[1]]$extinction,
+          ibm_scarbdist_mri_esm2_0_rcp85[[2]]$extinction,
+          ibm_scarbdist_mri_esm2_0_rcp85[[3]]$extinction,
+          ibm_scarbdist_mri_esm2_0_rcp85[[4]]$extinction,
+          ibm_scarbdist_mri_esm2_0_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_scarbdist_noresm2_mm_rcp85[[1]]$extinction,
+          ibm_scarbdist_noresm2_mm_rcp85[[2]]$extinction,
+          ibm_scarbdist_noresm2_mm_rcp85[[3]]$extinction,
+          ibm_scarbdist_noresm2_mm_rcp85[[4]]$extinction,
+          ibm_scarbdist_noresm2_mm_rcp85[[5]]$extinction), each = n_years))
+
+ibm_results$extinction[which(ibm_results$population == "SCarbDist" &
+                               ibm_results$scenario == "RCP 4.5")] = 
+  c(rep(c(ibm_scarbdist_control_rcp45[[1]]$extinction,
+          ibm_scarbdist_control_rcp45[[2]]$extinction
+          # ,
+          # ibm_scarbdist_control_rcp45[[3]]$extinction,
+          # ibm_scarbdist_control_rcp45[[4]]$extinction,
+          # ibm_scarbdist_control_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_scarbdist_canesm5_rcp45[[1]]$extinction,
+          ibm_scarbdist_canesm5_rcp45[[2]]$extinction
+          # ,
+          # ibm_scarbdist_canesm5_rcp45[[3]]$extinction,
+          # ibm_scarbdist_canesm5_rcp45[[4]]$extinction,
+          # ibm_scarbdist_canesm5_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_scarbdist_ec_earth3_rcp45[[1]]$extinction,
+          ibm_scarbdist_ec_earth3_rcp45[[2]]$extinction
+          # ,
+          # ibm_scarbdist_ec_earth3_rcp45[[3]]$extinction,
+          # ibm_scarbdist_ec_earth3_rcp45[[4]]$extinction,
+          # ibm_scarbdist_ec_earth3_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_scarbdist_fgoals_g3_rcp45[[1]]$extinction,
+          ibm_scarbdist_fgoals_g3_rcp45[[2]]$extinction
+          # ,
+          # ibm_scarbdist_fgoals_g3_rcp45[[3]]$extinction,
+          # ibm_scarbdist_fgoals_g3_rcp45[[4]]$extinction,
+          # ibm_scarbdist_fgoals_g3_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_scarbdist_gfdl_esm4_rcp45[[1]]$extinction,
+          ibm_scarbdist_gfdl_esm4_rcp45[[2]]$extinction
+          # ,
+          # ibm_scarbdist_gfdl_esm4_rcp45[[3]]$extinction,
+          # ibm_scarbdist_gfdl_esm4_rcp45[[4]]$extinction,
+          # ibm_scarbdist_gfdl_esm4_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_scarbdist_giss_e2_1_g_rcp45[[1]]$extinction,
+          ibm_scarbdist_giss_e2_1_g_rcp45[[2]]$extinction
+          # ,
+          # ibm_scarbdist_giss_e2_1_g_rcp45[[3]]$extinction,
+          # ibm_scarbdist_giss_e2_1_g_rcp45[[4]]$extinction,
+          # ibm_scarbdist_giss_e2_1_g_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_scarbdist_inm_cm4_8_rcp45[[1]]$extinction,
+          ibm_scarbdist_inm_cm4_8_rcp45[[2]]$extinction
+          # ,
+          # ibm_scarbdist_inm_cm4_8_rcp45[[3]]$extinction,
+          # ibm_scarbdist_inm_cm4_8_rcp45[[4]]$extinction,
+          # ibm_scarbdist_inm_cm4_8_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_scarbdist_ipsl_cm6a_lr_rcp45[[1]]$extinction,
+          ibm_scarbdist_ipsl_cm6a_lr_rcp45[[2]]$extinction
+          # ,
+          # ibm_scarbdist_ipsl_cm6a_lr_rcp45[[3]]$extinction,
+          # ibm_scarbdist_ipsl_cm6a_lr_rcp45[[4]]$extinction,
+          # ibm_scarbdist_ipsl_cm6a_lr_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_scarbdist_miroc6_rcp45[[1]]$extinction,
+          ibm_scarbdist_miroc6_rcp45[[2]]$extinction
+          # ,
+          # ibm_scarbdist_miroc6_rcp45[[3]]$extinction,
+          # ibm_scarbdist_miroc6_rcp45[[4]]$extinction,
+          # ibm_scarbdist_miroc6_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_scarbdist_mpi_esm1_2_lr_rcp45[[1]]$extinction,
+          ibm_scarbdist_mpi_esm1_2_lr_rcp45[[2]]$extinction
+          # ,
+          # ibm_scarbdist_mpi_esm1_2_lr_rcp45[[3]]$extinction,
+          # ibm_scarbdist_mpi_esm1_2_lr_rcp45[[4]]$extinction,
+          # ibm_scarbdist_mpi_esm1_2_lr_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_scarbdist_mri_esm2_0_rcp45[[1]]$extinction,
+          ibm_scarbdist_mri_esm2_0_rcp45[[2]]$extinction
+          # ,
+          # ibm_scarbdist_mri_esm2_0_rcp45[[3]]$extinction,
+          # ibm_scarbdist_mri_esm2_0_rcp45[[4]]$extinction,
+          # ibm_scarbdist_mri_esm2_0_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_scarbdist_noresm2_mm_rcp45[[1]]$extinction,
+          ibm_scarbdist_noresm2_mm_rcp45[[2]]$extinction
+          # ,
+          # ibm_scarbdist_noresm2_mm_rcp45[[3]]$extinction,
+          # ibm_scarbdist_noresm2_mm_rcp45[[4]]$extinction,
+          # ibm_scarbdist_noresm2_mm_rcp45[[5]]$extinction
+          ), each = n_years))
+
+
+rm(list = grep("ibm_scarbdist", ls() , value = TRUE, invert = FALSE))
+
+
+for(i in 1:(length(list.files("Output/Projections/")[grep("Natural_SierraCarbonera", list.files("Output/Projections/"))]))){
+  
+  print(i)
+  
+  load(paste0("Output/Projections/", list.files("Output/Projections/")[grep("Natural_SierraCarbonera", list.files("Output/Projections/"))][i]))
+}
+
+ibm_sierracarboneray5_canesm5_rcp85 = ibm_sierracarboneray5_canesm5
+ibm_sierracarboneray5_control_rcp85 = ibm_sierracarboneray5_control
+ibm_sierracarboneray5_ec_earth3_rcp85 = ibm_sierracarboneray5_ec_earth3
+ibm_sierracarboneray5_fgoals_g3_rcp85 = ibm_sierracarboneray5_fgoals_g3
+ibm_sierracarboneray5_gfdl_esm4_rcp85 = ibm_sierracarboneray5_gfdl_esm4
+ibm_sierracarboneray5_giss_e2_1_g_rcp85 = ibm_sierracarboneray5_giss_e2_1_g
+ibm_sierracarboneray5_inm_cm4_8_rcp85 = ibm_sierracarboneray5_inm_cm4_8
+ibm_sierracarboneray5_ipsl_cm6a_lr_rcp85 = ibm_sierracarboneray5_ipsl_cm6a_lr
+ibm_sierracarboneray5_miroc6_rcp85 = ibm_sierracarboneray5_miroc6
+ibm_sierracarboneray5_mpi_esm1_2_lr_rcp85 = ibm_sierracarboneray5_mpi_esm1_2_lr
+ibm_sierracarboneray5_mri_esm2_0_rcp85 = ibm_sierracarboneray5_mri_esm2_0
+ibm_sierracarboneray5_noresm2_mm_rcp85 = ibm_sierracarboneray5_noresm2_mm
+
+
+# Add log lambda (per simulation = per row)
+
+ibm_results$log_lambda[which(ibm_results$population == "SierraCarboneraY5" &
+                             ibm_results$scenario == "RCP 8.5")] = 
+  c(t(rbind(ibm_sierracarboneray5_control_rcp85[[1]]$log_lambda,
+            ibm_sierracarboneray5_control_rcp85[[2]]$log_lambda,
+            ibm_sierracarboneray5_control_rcp85[[3]]$log_lambda,
+            ibm_sierracarboneray5_control_rcp85[[4]]$log_lambda,
+            ibm_sierracarboneray5_control_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_sierracarboneray5_canesm5_rcp85[[1]]$log_lambda,
+            ibm_sierracarboneray5_canesm5_rcp85[[2]]$log_lambda,
+            ibm_sierracarboneray5_canesm5_rcp85[[3]]$log_lambda,
+            ibm_sierracarboneray5_canesm5_rcp85[[4]]$log_lambda,
+            ibm_sierracarboneray5_canesm5_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_sierracarboneray5_ec_earth3_rcp85[[1]]$log_lambda,
+            ibm_sierracarboneray5_ec_earth3_rcp85[[2]]$log_lambda,
+            ibm_sierracarboneray5_ec_earth3_rcp85[[3]]$log_lambda,
+            ibm_sierracarboneray5_ec_earth3_rcp85[[4]]$log_lambda,
+            ibm_sierracarboneray5_ec_earth3_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_sierracarboneray5_fgoals_g3_rcp85[[1]]$log_lambda,
+            ibm_sierracarboneray5_fgoals_g3_rcp85[[2]]$log_lambda,
+            ibm_sierracarboneray5_fgoals_g3_rcp85[[3]]$log_lambda,
+            ibm_sierracarboneray5_fgoals_g3_rcp85[[4]]$log_lambda,
+            ibm_sierracarboneray5_fgoals_g3_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_sierracarboneray5_gfdl_esm4_rcp85[[1]]$log_lambda,
+            ibm_sierracarboneray5_gfdl_esm4_rcp85[[2]]$log_lambda,
+            ibm_sierracarboneray5_gfdl_esm4_rcp85[[3]]$log_lambda,
+            ibm_sierracarboneray5_gfdl_esm4_rcp85[[4]]$log_lambda,
+            ibm_sierracarboneray5_gfdl_esm4_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_sierracarboneray5_giss_e2_1_g_rcp85[[1]]$log_lambda,
+            ibm_sierracarboneray5_giss_e2_1_g_rcp85[[2]]$log_lambda,
+            ibm_sierracarboneray5_giss_e2_1_g_rcp85[[3]]$log_lambda,
+            ibm_sierracarboneray5_giss_e2_1_g_rcp85[[4]]$log_lambda,
+            ibm_sierracarboneray5_giss_e2_1_g_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_sierracarboneray5_inm_cm4_8_rcp85[[1]]$log_lambda,
+            ibm_sierracarboneray5_inm_cm4_8_rcp85[[2]]$log_lambda,
+            ibm_sierracarboneray5_inm_cm4_8_rcp85[[3]]$log_lambda,
+            ibm_sierracarboneray5_inm_cm4_8_rcp85[[4]]$log_lambda,
+            ibm_sierracarboneray5_inm_cm4_8_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_sierracarboneray5_ipsl_cm6a_lr_rcp85[[1]]$log_lambda,
+            ibm_sierracarboneray5_ipsl_cm6a_lr_rcp85[[2]]$log_lambda,
+            ibm_sierracarboneray5_ipsl_cm6a_lr_rcp85[[3]]$log_lambda,
+            ibm_sierracarboneray5_ipsl_cm6a_lr_rcp85[[4]]$log_lambda,
+            ibm_sierracarboneray5_ipsl_cm6a_lr_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_sierracarboneray5_miroc6_rcp85[[1]]$log_lambda,
+            ibm_sierracarboneray5_miroc6_rcp85[[2]]$log_lambda,
+            ibm_sierracarboneray5_miroc6_rcp85[[3]]$log_lambda,
+            ibm_sierracarboneray5_miroc6_rcp85[[4]]$log_lambda,
+            ibm_sierracarboneray5_miroc6_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_sierracarboneray5_mpi_esm1_2_lr_rcp85[[1]]$log_lambda,
+            ibm_sierracarboneray5_mpi_esm1_2_lr_rcp85[[2]]$log_lambda,
+            ibm_sierracarboneray5_mpi_esm1_2_lr_rcp85[[3]]$log_lambda,
+            ibm_sierracarboneray5_mpi_esm1_2_lr_rcp85[[4]]$log_lambda,
+            ibm_sierracarboneray5_mpi_esm1_2_lr_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_sierracarboneray5_mri_esm2_0_rcp85[[1]]$log_lambda,
+            ibm_sierracarboneray5_mri_esm2_0_rcp85[[2]]$log_lambda,
+            ibm_sierracarboneray5_mri_esm2_0_rcp85[[3]]$log_lambda,
+            ibm_sierracarboneray5_mri_esm2_0_rcp85[[4]]$log_lambda,
+            ibm_sierracarboneray5_mri_esm2_0_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_sierracarboneray5_noresm2_mm_rcp85[[1]]$log_lambda,
+            ibm_sierracarboneray5_noresm2_mm_rcp85[[2]]$log_lambda,
+            ibm_sierracarboneray5_noresm2_mm_rcp85[[3]]$log_lambda,
+            ibm_sierracarboneray5_noresm2_mm_rcp85[[4]]$log_lambda,
+            ibm_sierracarboneray5_noresm2_mm_rcp85[[5]]$log_lambda)))
+
+ibm_results$log_lambda[which(ibm_results$population == "SierraCarboneraY5" &
+                               ibm_results$scenario == "RCP 4.5")] = 
+  c(t(rbind(ibm_sierracarboneray5_control_rcp45[[1]]$log_lambda,
+            ibm_sierracarboneray5_control_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_sierracarboneray5_control_rcp45[[3]]$log_lambda,
+            # ibm_sierracarboneray5_control_rcp45[[4]]$log_lambda,
+            # ibm_sierracarboneray5_control_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_sierracarboneray5_canesm5_rcp45[[1]]$log_lambda,
+            ibm_sierracarboneray5_canesm5_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_sierracarboneray5_canesm5_rcp45[[3]]$log_lambda,
+            # ibm_sierracarboneray5_canesm5_rcp45[[4]]$log_lambda,
+            # ibm_sierracarboneray5_canesm5_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_sierracarboneray5_ec_earth3_rcp45[[1]]$log_lambda,
+            ibm_sierracarboneray5_ec_earth3_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_sierracarboneray5_ec_earth3_rcp45[[3]]$log_lambda,
+            # ibm_sierracarboneray5_ec_earth3_rcp45[[4]]$log_lambda,
+            # ibm_sierracarboneray5_ec_earth3_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_sierracarboneray5_fgoals_g3_rcp45[[1]]$log_lambda,
+            ibm_sierracarboneray5_fgoals_g3_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_sierracarboneray5_fgoals_g3_rcp45[[3]]$log_lambda,
+            # ibm_sierracarboneray5_fgoals_g3_rcp45[[4]]$log_lambda,
+            # ibm_sierracarboneray5_fgoals_g3_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_sierracarboneray5_gfdl_esm4_rcp45[[1]]$log_lambda,
+            ibm_sierracarboneray5_gfdl_esm4_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_sierracarboneray5_gfdl_esm4_rcp45[[3]]$log_lambda,
+            # ibm_sierracarboneray5_gfdl_esm4_rcp45[[4]]$log_lambda,
+            # ibm_sierracarboneray5_gfdl_esm4_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_sierracarboneray5_giss_e2_1_g_rcp45[[1]]$log_lambda,
+            ibm_sierracarboneray5_giss_e2_1_g_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_sierracarboneray5_giss_e2_1_g_rcp45[[3]]$log_lambda,
+            # ibm_sierracarboneray5_giss_e2_1_g_rcp45[[4]]$log_lambda,
+            # ibm_sierracarboneray5_giss_e2_1_g_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_sierracarboneray5_inm_cm4_8_rcp45[[1]]$log_lambda,
+            ibm_sierracarboneray5_inm_cm4_8_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_sierracarboneray5_inm_cm4_8_rcp45[[3]]$log_lambda,
+            # ibm_sierracarboneray5_inm_cm4_8_rcp45[[4]]$log_lambda,
+            # ibm_sierracarboneray5_inm_cm4_8_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_sierracarboneray5_ipsl_cm6a_lr_rcp45[[1]]$log_lambda,
+            ibm_sierracarboneray5_ipsl_cm6a_lr_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_sierracarboneray5_ipsl_cm6a_lr_rcp45[[3]]$log_lambda,
+            # ibm_sierracarboneray5_ipsl_cm6a_lr_rcp45[[4]]$log_lambda,
+            # ibm_sierracarboneray5_ipsl_cm6a_lr_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_sierracarboneray5_miroc6_rcp45[[1]]$log_lambda,
+            ibm_sierracarboneray5_miroc6_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_sierracarboneray5_miroc6_rcp45[[3]]$log_lambda,
+            # ibm_sierracarboneray5_miroc6_rcp45[[4]]$log_lambda,
+            # ibm_sierracarboneray5_miroc6_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_sierracarboneray5_mpi_esm1_2_lr_rcp45[[1]]$log_lambda,
+            ibm_sierracarboneray5_mpi_esm1_2_lr_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_sierracarboneray5_mpi_esm1_2_lr_rcp45[[3]]$log_lambda,
+            # ibm_sierracarboneray5_mpi_esm1_2_lr_rcp45[[4]]$log_lambda,
+            # ibm_sierracarboneray5_mpi_esm1_2_lr_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_sierracarboneray5_mri_esm2_0_rcp45[[1]]$log_lambda,
+            ibm_sierracarboneray5_mri_esm2_0_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_sierracarboneray5_mri_esm2_0_rcp45[[3]]$log_lambda,
+            # ibm_sierracarboneray5_mri_esm2_0_rcp45[[4]]$log_lambda,
+            # ibm_sierracarboneray5_mri_esm2_0_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_sierracarboneray5_noresm2_mm_rcp45[[1]]$log_lambda,
+            ibm_sierracarboneray5_noresm2_mm_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_sierracarboneray5_noresm2_mm_rcp45[[3]]$log_lambda,
+            # ibm_sierracarboneray5_noresm2_mm_rcp45[[4]]$log_lambda,
+            # ibm_sierracarboneray5_noresm2_mm_rcp45[[5]]$log_lambda
+            )))
+
+
+# Add extinction
+
+ibm_results$extinction[which(ibm_results$population == "SierraCarboneraY5" &
+                             ibm_results$scenario == "RCP 8.5")] = 
+  c(rep(c(ibm_sierracarboneray5_control_rcp85[[1]]$extinction,
+          ibm_sierracarboneray5_control_rcp85[[2]]$extinction,
+          ibm_sierracarboneray5_control_rcp85[[3]]$extinction,
+          ibm_sierracarboneray5_control_rcp85[[4]]$extinction,
+          ibm_sierracarboneray5_control_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_sierracarboneray5_canesm5_rcp85[[1]]$extinction,
+          ibm_sierracarboneray5_canesm5_rcp85[[2]]$extinction,
+          ibm_sierracarboneray5_canesm5_rcp85[[3]]$extinction,
+          ibm_sierracarboneray5_canesm5_rcp85[[4]]$extinction,
+          ibm_sierracarboneray5_canesm5_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_sierracarboneray5_ec_earth3_rcp85[[1]]$extinction,
+          ibm_sierracarboneray5_ec_earth3_rcp85[[2]]$extinction,
+          ibm_sierracarboneray5_ec_earth3_rcp85[[3]]$extinction,
+          ibm_sierracarboneray5_ec_earth3_rcp85[[4]]$extinction,
+          ibm_sierracarboneray5_ec_earth3_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_sierracarboneray5_fgoals_g3_rcp85[[1]]$extinction,
+          ibm_sierracarboneray5_fgoals_g3_rcp85[[2]]$extinction,
+          ibm_sierracarboneray5_fgoals_g3_rcp85[[3]]$extinction,
+          ibm_sierracarboneray5_fgoals_g3_rcp85[[4]]$extinction,
+          ibm_sierracarboneray5_fgoals_g3_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_sierracarboneray5_gfdl_esm4_rcp85[[1]]$extinction,
+          ibm_sierracarboneray5_gfdl_esm4_rcp85[[2]]$extinction,
+          ibm_sierracarboneray5_gfdl_esm4_rcp85[[3]]$extinction,
+          ibm_sierracarboneray5_gfdl_esm4_rcp85[[4]]$extinction,
+          ibm_sierracarboneray5_gfdl_esm4_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_sierracarboneray5_giss_e2_1_g_rcp85[[1]]$extinction,
+          ibm_sierracarboneray5_giss_e2_1_g_rcp85[[2]]$extinction,
+          ibm_sierracarboneray5_giss_e2_1_g_rcp85[[3]]$extinction,
+          ibm_sierracarboneray5_giss_e2_1_g_rcp85[[4]]$extinction,
+          ibm_sierracarboneray5_giss_e2_1_g_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_sierracarboneray5_inm_cm4_8_rcp85[[1]]$extinction,
+          ibm_sierracarboneray5_inm_cm4_8_rcp85[[2]]$extinction,
+          ibm_sierracarboneray5_inm_cm4_8_rcp85[[3]]$extinction,
+          ibm_sierracarboneray5_inm_cm4_8_rcp85[[4]]$extinction,
+          ibm_sierracarboneray5_inm_cm4_8_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_sierracarboneray5_ipsl_cm6a_lr_rcp85[[1]]$extinction,
+          ibm_sierracarboneray5_ipsl_cm6a_lr_rcp85[[2]]$extinction,
+          ibm_sierracarboneray5_ipsl_cm6a_lr_rcp85[[3]]$extinction,
+          ibm_sierracarboneray5_ipsl_cm6a_lr_rcp85[[4]]$extinction,
+          ibm_sierracarboneray5_ipsl_cm6a_lr_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_sierracarboneray5_miroc6_rcp85[[1]]$extinction,
+          ibm_sierracarboneray5_miroc6_rcp85[[2]]$extinction,
+          ibm_sierracarboneray5_miroc6_rcp85[[3]]$extinction,
+          ibm_sierracarboneray5_miroc6_rcp85[[4]]$extinction,
+          ibm_sierracarboneray5_miroc6_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_sierracarboneray5_mpi_esm1_2_lr_rcp85[[1]]$extinction,
+          ibm_sierracarboneray5_mpi_esm1_2_lr_rcp85[[2]]$extinction,
+          ibm_sierracarboneray5_mpi_esm1_2_lr_rcp85[[3]]$extinction,
+          ibm_sierracarboneray5_mpi_esm1_2_lr_rcp85[[4]]$extinction,
+          ibm_sierracarboneray5_mpi_esm1_2_lr_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_sierracarboneray5_mri_esm2_0_rcp85[[1]]$extinction,
+          ibm_sierracarboneray5_mri_esm2_0_rcp85[[2]]$extinction,
+          ibm_sierracarboneray5_mri_esm2_0_rcp85[[3]]$extinction,
+          ibm_sierracarboneray5_mri_esm2_0_rcp85[[4]]$extinction,
+          ibm_sierracarboneray5_mri_esm2_0_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_sierracarboneray5_noresm2_mm_rcp85[[1]]$extinction,
+          ibm_sierracarboneray5_noresm2_mm_rcp85[[2]]$extinction,
+          ibm_sierracarboneray5_noresm2_mm_rcp85[[3]]$extinction,
+          ibm_sierracarboneray5_noresm2_mm_rcp85[[4]]$extinction,
+          ibm_sierracarboneray5_noresm2_mm_rcp85[[5]]$extinction), each = n_years))
+
+ibm_results$extinction[which(ibm_results$population == "SierraCarboneraY5" &
+                               ibm_results$scenario == "RCP 4.5")] = 
+  c(rep(c(ibm_sierracarboneray5_control_rcp45[[1]]$extinction,
+          ibm_sierracarboneray5_control_rcp45[[2]]$extinction
+          # ,
+          # ibm_sierracarboneray5_control_rcp45[[3]]$extinction,
+          # ibm_sierracarboneray5_control_rcp45[[4]]$extinction,
+          # ibm_sierracarboneray5_control_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_sierracarboneray5_canesm5_rcp45[[1]]$extinction,
+          ibm_sierracarboneray5_canesm5_rcp45[[2]]$extinction
+          # ,
+          # ibm_sierracarboneray5_canesm5_rcp45[[3]]$extinction,
+          # ibm_sierracarboneray5_canesm5_rcp45[[4]]$extinction,
+          # ibm_sierracarboneray5_canesm5_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_sierracarboneray5_ec_earth3_rcp45[[1]]$extinction,
+          ibm_sierracarboneray5_ec_earth3_rcp45[[2]]$extinction
+          # ,
+          # ibm_sierracarboneray5_ec_earth3_rcp45[[3]]$extinction,
+          # ibm_sierracarboneray5_ec_earth3_rcp45[[4]]$extinction,
+          # ibm_sierracarboneray5_ec_earth3_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_sierracarboneray5_fgoals_g3_rcp45[[1]]$extinction,
+          ibm_sierracarboneray5_fgoals_g3_rcp45[[2]]$extinction
+          # ,
+          # ibm_sierracarboneray5_fgoals_g3_rcp45[[3]]$extinction,
+          # ibm_sierracarboneray5_fgoals_g3_rcp45[[4]]$extinction,
+          # ibm_sierracarboneray5_fgoals_g3_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_sierracarboneray5_gfdl_esm4_rcp45[[1]]$extinction,
+          ibm_sierracarboneray5_gfdl_esm4_rcp45[[2]]$extinction
+          # ,
+          # ibm_sierracarboneray5_gfdl_esm4_rcp45[[3]]$extinction,
+          # ibm_sierracarboneray5_gfdl_esm4_rcp45[[4]]$extinction,
+          # ibm_sierracarboneray5_gfdl_esm4_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_sierracarboneray5_giss_e2_1_g_rcp45[[1]]$extinction,
+          ibm_sierracarboneray5_giss_e2_1_g_rcp45[[2]]$extinction
+          # ,
+          # ibm_sierracarboneray5_giss_e2_1_g_rcp45[[3]]$extinction,
+          # ibm_sierracarboneray5_giss_e2_1_g_rcp45[[4]]$extinction,
+          # ibm_sierracarboneray5_giss_e2_1_g_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_sierracarboneray5_inm_cm4_8_rcp45[[1]]$extinction,
+          ibm_sierracarboneray5_inm_cm4_8_rcp45[[2]]$extinction
+          # ,
+          # ibm_sierracarboneray5_inm_cm4_8_rcp45[[3]]$extinction,
+          # ibm_sierracarboneray5_inm_cm4_8_rcp45[[4]]$extinction,
+          # ibm_sierracarboneray5_inm_cm4_8_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_sierracarboneray5_ipsl_cm6a_lr_rcp45[[1]]$extinction,
+          ibm_sierracarboneray5_ipsl_cm6a_lr_rcp45[[2]]$extinction
+          # ,
+          # ibm_sierracarboneray5_ipsl_cm6a_lr_rcp45[[3]]$extinction,
+          # ibm_sierracarboneray5_ipsl_cm6a_lr_rcp45[[4]]$extinction,
+          # ibm_sierracarboneray5_ipsl_cm6a_lr_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_sierracarboneray5_miroc6_rcp45[[1]]$extinction,
+          ibm_sierracarboneray5_miroc6_rcp45[[2]]$extinction
+          # ,
+          # ibm_sierracarboneray5_miroc6_rcp45[[3]]$extinction,
+          # ibm_sierracarboneray5_miroc6_rcp45[[4]]$extinction,
+          # ibm_sierracarboneray5_miroc6_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_sierracarboneray5_mpi_esm1_2_lr_rcp45[[1]]$extinction,
+          ibm_sierracarboneray5_mpi_esm1_2_lr_rcp45[[2]]$extinction
+          # ,
+          # ibm_sierracarboneray5_mpi_esm1_2_lr_rcp45[[3]]$extinction,
+          # ibm_sierracarboneray5_mpi_esm1_2_lr_rcp45[[4]]$extinction,
+          # ibm_sierracarboneray5_mpi_esm1_2_lr_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_sierracarboneray5_mri_esm2_0_rcp45[[1]]$extinction,
+          ibm_sierracarboneray5_mri_esm2_0_rcp45[[2]]$extinction
+          # ,
+          # ibm_sierracarboneray5_mri_esm2_0_rcp45[[3]]$extinction,
+          # ibm_sierracarboneray5_mri_esm2_0_rcp45[[4]]$extinction,
+          # ibm_sierracarboneray5_mri_esm2_0_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_sierracarboneray5_noresm2_mm_rcp45[[1]]$extinction,
+          ibm_sierracarboneray5_noresm2_mm_rcp45[[2]]$extinction
+          # ,
+          # ibm_sierracarboneray5_noresm2_mm_rcp45[[3]]$extinction,
+          # ibm_sierracarboneray5_noresm2_mm_rcp45[[4]]$extinction,
+          # ibm_sierracarboneray5_noresm2_mm_rcp45[[5]]$extinction
+          ), each = n_years))
+
+
+rm(list = grep("ibm_sierracarbonera", ls() , value = TRUE, invert = FALSE))
+
+
+
+for(i in 1:(length(list.files("Output/Projections/")[grep("Natural_SierraRetin", list.files("Output/Projections/"))]))){
+  
+  print(i)
+  
+  load(paste0("Output/Projections/", list.files("Output/Projections/")[grep("Natural_SierraRetin", list.files("Output/Projections/"))][i]))
+}
+
+ibm_sierraretiny5_canesm5_rcp85 = ibm_sierraretiny5_canesm5
+ibm_sierraretiny5_control_rcp85 = ibm_sierraretiny5_control
+ibm_sierraretiny5_ec_earth3_rcp85 = ibm_sierraretiny5_ec_earth3
+ibm_sierraretiny5_fgoals_g3_rcp85 = ibm_sierraretiny5_fgoals_g3
+ibm_sierraretiny5_gfdl_esm4_rcp85 = ibm_sierraretiny5_gfdl_esm4
+ibm_sierraretiny5_giss_e2_1_g_rcp85 = ibm_sierraretiny5_giss_e2_1_g
+ibm_sierraretiny5_inm_cm4_8_rcp85 = ibm_sierraretiny5_inm_cm4_8
+ibm_sierraretiny5_ipsl_cm6a_lr_rcp85 = ibm_sierraretiny5_ipsl_cm6a_lr
+ibm_sierraretiny5_miroc6_rcp85 = ibm_sierraretiny5_miroc6
+ibm_sierraretiny5_mpi_esm1_2_lr_rcp85 = ibm_sierraretiny5_mpi_esm1_2_lr
+ibm_sierraretiny5_mri_esm2_0_rcp85 = ibm_sierraretiny5_mri_esm2_0
+ibm_sierraretiny5_noresm2_mm_rcp85 = ibm_sierraretiny5_noresm2_mm
+
+
+# Add log lambda (per simulation = per row)
+
+ibm_results$log_lambda[which(ibm_results$population == "SierraRetinY5" &
+                             ibm_results$scenario == "RCP 8.5")] = 
+  c(t(rbind(ibm_sierraretiny5_control_rcp85[[1]]$log_lambda,
+            ibm_sierraretiny5_control_rcp85[[2]]$log_lambda,
+            ibm_sierraretiny5_control_rcp85[[3]]$log_lambda,
+            ibm_sierraretiny5_control_rcp85[[4]]$log_lambda,
+            ibm_sierraretiny5_control_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_sierraretiny5_canesm5_rcp85[[1]]$log_lambda,
+            ibm_sierraretiny5_canesm5_rcp85[[2]]$log_lambda,
+            ibm_sierraretiny5_canesm5_rcp85[[3]]$log_lambda,
+            ibm_sierraretiny5_canesm5_rcp85[[4]]$log_lambda,
+            ibm_sierraretiny5_canesm5_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_sierraretiny5_ec_earth3_rcp85[[1]]$log_lambda,
+            ibm_sierraretiny5_ec_earth3_rcp85[[2]]$log_lambda,
+            ibm_sierraretiny5_ec_earth3_rcp85[[3]]$log_lambda,
+            ibm_sierraretiny5_ec_earth3_rcp85[[4]]$log_lambda,
+            ibm_sierraretiny5_ec_earth3_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_sierraretiny5_fgoals_g3_rcp85[[1]]$log_lambda,
+            ibm_sierraretiny5_fgoals_g3_rcp85[[2]]$log_lambda,
+            ibm_sierraretiny5_fgoals_g3_rcp85[[3]]$log_lambda,
+            ibm_sierraretiny5_fgoals_g3_rcp85[[4]]$log_lambda,
+            ibm_sierraretiny5_fgoals_g3_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_sierraretiny5_gfdl_esm4_rcp85[[1]]$log_lambda,
+            ibm_sierraretiny5_gfdl_esm4_rcp85[[2]]$log_lambda,
+            ibm_sierraretiny5_gfdl_esm4_rcp85[[3]]$log_lambda,
+            ibm_sierraretiny5_gfdl_esm4_rcp85[[4]]$log_lambda,
+            ibm_sierraretiny5_gfdl_esm4_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_sierraretiny5_giss_e2_1_g_rcp85[[1]]$log_lambda,
+            ibm_sierraretiny5_giss_e2_1_g_rcp85[[2]]$log_lambda,
+            ibm_sierraretiny5_giss_e2_1_g_rcp85[[3]]$log_lambda,
+            ibm_sierraretiny5_giss_e2_1_g_rcp85[[4]]$log_lambda,
+            ibm_sierraretiny5_giss_e2_1_g_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_sierraretiny5_inm_cm4_8_rcp85[[1]]$log_lambda,
+            ibm_sierraretiny5_inm_cm4_8_rcp85[[2]]$log_lambda,
+            ibm_sierraretiny5_inm_cm4_8_rcp85[[3]]$log_lambda,
+            ibm_sierraretiny5_inm_cm4_8_rcp85[[4]]$log_lambda,
+            ibm_sierraretiny5_inm_cm4_8_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_sierraretiny5_ipsl_cm6a_lr_rcp85[[1]]$log_lambda,
+            ibm_sierraretiny5_ipsl_cm6a_lr_rcp85[[2]]$log_lambda,
+            ibm_sierraretiny5_ipsl_cm6a_lr_rcp85[[3]]$log_lambda,
+            ibm_sierraretiny5_ipsl_cm6a_lr_rcp85[[4]]$log_lambda,
+            ibm_sierraretiny5_ipsl_cm6a_lr_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_sierraretiny5_miroc6_rcp85[[1]]$log_lambda,
+            ibm_sierraretiny5_miroc6_rcp85[[2]]$log_lambda,
+            ibm_sierraretiny5_miroc6_rcp85[[3]]$log_lambda,
+            ibm_sierraretiny5_miroc6_rcp85[[4]]$log_lambda,
+            ibm_sierraretiny5_miroc6_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_sierraretiny5_mpi_esm1_2_lr_rcp85[[1]]$log_lambda,
+            ibm_sierraretiny5_mpi_esm1_2_lr_rcp85[[2]]$log_lambda,
+            ibm_sierraretiny5_mpi_esm1_2_lr_rcp85[[3]]$log_lambda,
+            ibm_sierraretiny5_mpi_esm1_2_lr_rcp85[[4]]$log_lambda,
+            ibm_sierraretiny5_mpi_esm1_2_lr_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_sierraretiny5_mri_esm2_0_rcp85[[1]]$log_lambda,
+            ibm_sierraretiny5_mri_esm2_0_rcp85[[2]]$log_lambda,
+            ibm_sierraretiny5_mri_esm2_0_rcp85[[3]]$log_lambda,
+            ibm_sierraretiny5_mri_esm2_0_rcp85[[4]]$log_lambda,
+            ibm_sierraretiny5_mri_esm2_0_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_sierraretiny5_noresm2_mm_rcp85[[1]]$log_lambda,
+            ibm_sierraretiny5_noresm2_mm_rcp85[[2]]$log_lambda,
+            ibm_sierraretiny5_noresm2_mm_rcp85[[3]]$log_lambda,
+            ibm_sierraretiny5_noresm2_mm_rcp85[[4]]$log_lambda,
+            ibm_sierraretiny5_noresm2_mm_rcp85[[5]]$log_lambda)))
+
+ibm_results$log_lambda[which(ibm_results$population == "SierraRetinY5" &
+                               ibm_results$scenario == "RCP 4.5")] = 
+  c(t(rbind(ibm_sierraretiny5_control_rcp45[[1]]$log_lambda,
+            ibm_sierraretiny5_control_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_sierraretiny5_control_rcp45[[3]]$log_lambda,
+            # ibm_sierraretiny5_control_rcp45[[4]]$log_lambda,
+            # ibm_sierraretiny5_control_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_sierraretiny5_canesm5_rcp45[[1]]$log_lambda,
+            ibm_sierraretiny5_canesm5_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_sierraretiny5_canesm5_rcp45[[3]]$log_lambda,
+            # ibm_sierraretiny5_canesm5_rcp45[[4]]$log_lambda,
+            # ibm_sierraretiny5_canesm5_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_sierraretiny5_ec_earth3_rcp45[[1]]$log_lambda,
+            ibm_sierraretiny5_ec_earth3_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_sierraretiny5_ec_earth3_rcp45[[3]]$log_lambda,
+            # ibm_sierraretiny5_ec_earth3_rcp45[[4]]$log_lambda,
+            # ibm_sierraretiny5_ec_earth3_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_sierraretiny5_fgoals_g3_rcp45[[1]]$log_lambda,
+            ibm_sierraretiny5_fgoals_g3_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_sierraretiny5_fgoals_g3_rcp45[[3]]$log_lambda,
+            # ibm_sierraretiny5_fgoals_g3_rcp45[[4]]$log_lambda,
+            # ibm_sierraretiny5_fgoals_g3_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_sierraretiny5_gfdl_esm4_rcp45[[1]]$log_lambda,
+            ibm_sierraretiny5_gfdl_esm4_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_sierraretiny5_gfdl_esm4_rcp45[[3]]$log_lambda,
+            # ibm_sierraretiny5_gfdl_esm4_rcp45[[4]]$log_lambda,
+            # ibm_sierraretiny5_gfdl_esm4_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_sierraretiny5_giss_e2_1_g_rcp45[[1]]$log_lambda,
+            ibm_sierraretiny5_giss_e2_1_g_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_sierraretiny5_giss_e2_1_g_rcp45[[3]]$log_lambda,
+            # ibm_sierraretiny5_giss_e2_1_g_rcp45[[4]]$log_lambda,
+            # ibm_sierraretiny5_giss_e2_1_g_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_sierraretiny5_inm_cm4_8_rcp45[[1]]$log_lambda,
+            ibm_sierraretiny5_inm_cm4_8_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_sierraretiny5_inm_cm4_8_rcp45[[3]]$log_lambda,
+            # ibm_sierraretiny5_inm_cm4_8_rcp45[[4]]$log_lambda,
+            # ibm_sierraretiny5_inm_cm4_8_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_sierraretiny5_ipsl_cm6a_lr_rcp45[[1]]$log_lambda,
+            ibm_sierraretiny5_ipsl_cm6a_lr_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_sierraretiny5_ipsl_cm6a_lr_rcp45[[3]]$log_lambda,
+            # ibm_sierraretiny5_ipsl_cm6a_lr_rcp45[[4]]$log_lambda,
+            # ibm_sierraretiny5_ipsl_cm6a_lr_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_sierraretiny5_miroc6_rcp45[[1]]$log_lambda,
+            ibm_sierraretiny5_miroc6_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_sierraretiny5_miroc6_rcp45[[3]]$log_lambda,
+            # ibm_sierraretiny5_miroc6_rcp45[[4]]$log_lambda,
+            # ibm_sierraretiny5_miroc6_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_sierraretiny5_mpi_esm1_2_lr_rcp45[[1]]$log_lambda,
+            ibm_sierraretiny5_mpi_esm1_2_lr_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_sierraretiny5_mpi_esm1_2_lr_rcp45[[3]]$log_lambda,
+            # ibm_sierraretiny5_mpi_esm1_2_lr_rcp45[[4]]$log_lambda,
+            # ibm_sierraretiny5_mpi_esm1_2_lr_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_sierraretiny5_mri_esm2_0_rcp45[[1]]$log_lambda,
+            ibm_sierraretiny5_mri_esm2_0_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_sierraretiny5_mri_esm2_0_rcp45[[3]]$log_lambda,
+            # ibm_sierraretiny5_mri_esm2_0_rcp45[[4]]$log_lambda,
+            # ibm_sierraretiny5_mri_esm2_0_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_sierraretiny5_noresm2_mm_rcp45[[1]]$log_lambda,
+            ibm_sierraretiny5_noresm2_mm_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_sierraretiny5_noresm2_mm_rcp45[[3]]$log_lambda,
+            # ibm_sierraretiny5_noresm2_mm_rcp45[[4]]$log_lambda,
+            # ibm_sierraretiny5_noresm2_mm_rcp45[[5]]$log_lambda
+            )))
+
+
+# Add extinction
+
+ibm_results$extinction[which(ibm_results$population == "SierraRetinY5" &
+                             ibm_results$scenario == "RCP 8.5")] = 
+  c(rep(c(ibm_sierraretiny5_control_rcp85[[1]]$extinction,
+          ibm_sierraretiny5_control_rcp85[[2]]$extinction,
+          ibm_sierraretiny5_control_rcp85[[3]]$extinction,
+          ibm_sierraretiny5_control_rcp85[[4]]$extinction,
+          ibm_sierraretiny5_control_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_sierraretiny5_canesm5_rcp85[[1]]$extinction,
+          ibm_sierraretiny5_canesm5_rcp85[[2]]$extinction,
+          ibm_sierraretiny5_canesm5_rcp85[[3]]$extinction,
+          ibm_sierraretiny5_canesm5_rcp85[[4]]$extinction,
+          ibm_sierraretiny5_canesm5_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_sierraretiny5_ec_earth3_rcp85[[1]]$extinction,
+          ibm_sierraretiny5_ec_earth3_rcp85[[2]]$extinction,
+          ibm_sierraretiny5_ec_earth3_rcp85[[3]]$extinction,
+          ibm_sierraretiny5_ec_earth3_rcp85[[4]]$extinction,
+          ibm_sierraretiny5_ec_earth3_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_sierraretiny5_fgoals_g3_rcp85[[1]]$extinction,
+          ibm_sierraretiny5_fgoals_g3_rcp85[[2]]$extinction,
+          ibm_sierraretiny5_fgoals_g3_rcp85[[3]]$extinction,
+          ibm_sierraretiny5_fgoals_g3_rcp85[[4]]$extinction,
+          ibm_sierraretiny5_fgoals_g3_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_sierraretiny5_gfdl_esm4_rcp85[[1]]$extinction,
+          ibm_sierraretiny5_gfdl_esm4_rcp85[[2]]$extinction,
+          ibm_sierraretiny5_gfdl_esm4_rcp85[[3]]$extinction,
+          ibm_sierraretiny5_gfdl_esm4_rcp85[[4]]$extinction,
+          ibm_sierraretiny5_gfdl_esm4_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_sierraretiny5_giss_e2_1_g_rcp85[[1]]$extinction,
+          ibm_sierraretiny5_giss_e2_1_g_rcp85[[2]]$extinction,
+          ibm_sierraretiny5_giss_e2_1_g_rcp85[[3]]$extinction,
+          ibm_sierraretiny5_giss_e2_1_g_rcp85[[4]]$extinction,
+          ibm_sierraretiny5_giss_e2_1_g_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_sierraretiny5_inm_cm4_8_rcp85[[1]]$extinction,
+          ibm_sierraretiny5_inm_cm4_8_rcp85[[2]]$extinction,
+          ibm_sierraretiny5_inm_cm4_8_rcp85[[3]]$extinction,
+          ibm_sierraretiny5_inm_cm4_8_rcp85[[4]]$extinction,
+          ibm_sierraretiny5_inm_cm4_8_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_sierraretiny5_ipsl_cm6a_lr_rcp85[[1]]$extinction,
+          ibm_sierraretiny5_ipsl_cm6a_lr_rcp85[[2]]$extinction,
+          ibm_sierraretiny5_ipsl_cm6a_lr_rcp85[[3]]$extinction,
+          ibm_sierraretiny5_ipsl_cm6a_lr_rcp85[[4]]$extinction,
+          ibm_sierraretiny5_ipsl_cm6a_lr_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_sierraretiny5_miroc6_rcp85[[1]]$extinction,
+          ibm_sierraretiny5_miroc6_rcp85[[2]]$extinction,
+          ibm_sierraretiny5_miroc6_rcp85[[3]]$extinction,
+          ibm_sierraretiny5_miroc6_rcp85[[4]]$extinction,
+          ibm_sierraretiny5_miroc6_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_sierraretiny5_mpi_esm1_2_lr_rcp85[[1]]$extinction,
+          ibm_sierraretiny5_mpi_esm1_2_lr_rcp85[[2]]$extinction,
+          ibm_sierraretiny5_mpi_esm1_2_lr_rcp85[[3]]$extinction,
+          ibm_sierraretiny5_mpi_esm1_2_lr_rcp85[[4]]$extinction,
+          ibm_sierraretiny5_mpi_esm1_2_lr_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_sierraretiny5_mri_esm2_0_rcp85[[1]]$extinction,
+          ibm_sierraretiny5_mri_esm2_0_rcp85[[2]]$extinction,
+          ibm_sierraretiny5_mri_esm2_0_rcp85[[3]]$extinction,
+          ibm_sierraretiny5_mri_esm2_0_rcp85[[4]]$extinction,
+          ibm_sierraretiny5_mri_esm2_0_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_sierraretiny5_noresm2_mm_rcp85[[1]]$extinction,
+          ibm_sierraretiny5_noresm2_mm_rcp85[[2]]$extinction,
+          ibm_sierraretiny5_noresm2_mm_rcp85[[3]]$extinction,
+          ibm_sierraretiny5_noresm2_mm_rcp85[[4]]$extinction,
+          ibm_sierraretiny5_noresm2_mm_rcp85[[5]]$extinction), each = n_years))
+
+ibm_results$extinction[which(ibm_results$population == "SierraRetinY5" &
+                               ibm_results$scenario == "RCP 4.5")] = 
+  c(rep(c(ibm_sierraretiny5_control_rcp45[[1]]$extinction,
+          ibm_sierraretiny5_control_rcp45[[2]]$extinction
+          # ,
+          # ibm_sierraretiny5_control_rcp45[[3]]$extinction,
+          # ibm_sierraretiny5_control_rcp45[[4]]$extinction,
+          # ibm_sierraretiny5_control_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_sierraretiny5_canesm5_rcp45[[1]]$extinction,
+          ibm_sierraretiny5_canesm5_rcp45[[2]]$extinction
+          # ,
+          # ibm_sierraretiny5_canesm5_rcp45[[3]]$extinction,
+          # ibm_sierraretiny5_canesm5_rcp45[[4]]$extinction,
+          # ibm_sierraretiny5_canesm5_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_sierraretiny5_ec_earth3_rcp45[[1]]$extinction,
+          ibm_sierraretiny5_ec_earth3_rcp45[[2]]$extinction
+          # ,
+          # ibm_sierraretiny5_ec_earth3_rcp45[[3]]$extinction,
+          # ibm_sierraretiny5_ec_earth3_rcp45[[4]]$extinction,
+          # ibm_sierraretiny5_ec_earth3_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_sierraretiny5_fgoals_g3_rcp45[[1]]$extinction,
+          ibm_sierraretiny5_fgoals_g3_rcp45[[2]]$extinction
+          # ,
+          # ibm_sierraretiny5_fgoals_g3_rcp45[[3]]$extinction,
+          # ibm_sierraretiny5_fgoals_g3_rcp45[[4]]$extinction,
+          # ibm_sierraretiny5_fgoals_g3_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_sierraretiny5_gfdl_esm4_rcp45[[1]]$extinction,
+          ibm_sierraretiny5_gfdl_esm4_rcp45[[2]]$extinction
+          # ,
+          # ibm_sierraretiny5_gfdl_esm4_rcp45[[3]]$extinction,
+          # ibm_sierraretiny5_gfdl_esm4_rcp45[[4]]$extinction,
+          # ibm_sierraretiny5_gfdl_esm4_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_sierraretiny5_giss_e2_1_g_rcp45[[1]]$extinction,
+          ibm_sierraretiny5_giss_e2_1_g_rcp45[[2]]$extinction
+          # ,
+          # ibm_sierraretiny5_giss_e2_1_g_rcp45[[3]]$extinction,
+          # ibm_sierraretiny5_giss_e2_1_g_rcp45[[4]]$extinction,
+          # ibm_sierraretiny5_giss_e2_1_g_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_sierraretiny5_inm_cm4_8_rcp45[[1]]$extinction,
+          ibm_sierraretiny5_inm_cm4_8_rcp45[[2]]$extinction
+          # ,
+          # ibm_sierraretiny5_inm_cm4_8_rcp45[[3]]$extinction,
+          # ibm_sierraretiny5_inm_cm4_8_rcp45[[4]]$extinction,
+          # ibm_sierraretiny5_inm_cm4_8_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_sierraretiny5_ipsl_cm6a_lr_rcp45[[1]]$extinction,
+          ibm_sierraretiny5_ipsl_cm6a_lr_rcp45[[2]]$extinction
+          # ,
+          # ibm_sierraretiny5_ipsl_cm6a_lr_rcp45[[3]]$extinction,
+          # ibm_sierraretiny5_ipsl_cm6a_lr_rcp45[[4]]$extinction,
+          # ibm_sierraretiny5_ipsl_cm6a_lr_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_sierraretiny5_miroc6_rcp45[[1]]$extinction,
+          ibm_sierraretiny5_miroc6_rcp45[[2]]$extinction
+          # ,
+          # ibm_sierraretiny5_miroc6_rcp45[[3]]$extinction,
+          # ibm_sierraretiny5_miroc6_rcp45[[4]]$extinction,
+          # ibm_sierraretiny5_miroc6_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_sierraretiny5_mpi_esm1_2_lr_rcp45[[1]]$extinction,
+          ibm_sierraretiny5_mpi_esm1_2_lr_rcp45[[2]]$extinction
+          # ,
+          # ibm_sierraretiny5_mpi_esm1_2_lr_rcp45[[3]]$extinction,
+          # ibm_sierraretiny5_mpi_esm1_2_lr_rcp45[[4]]$extinction,
+          # ibm_sierraretiny5_mpi_esm1_2_lr_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_sierraretiny5_mri_esm2_0_rcp45[[1]]$extinction,
+          ibm_sierraretiny5_mri_esm2_0_rcp45[[2]]$extinction
+          # ,
+          # ibm_sierraretiny5_mri_esm2_0_rcp45[[3]]$extinction,
+          # ibm_sierraretiny5_mri_esm2_0_rcp45[[4]]$extinction,
+          # ibm_sierraretiny5_mri_esm2_0_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_sierraretiny5_noresm2_mm_rcp45[[1]]$extinction,
+          ibm_sierraretiny5_noresm2_mm_rcp45[[2]]$extinction
+          # ,
+          # ibm_sierraretiny5_noresm2_mm_rcp45[[3]]$extinction,
+          # ibm_sierraretiny5_noresm2_mm_rcp45[[4]]$extinction,
+          # ibm_sierraretiny5_noresm2_mm_rcp45[[5]]$extinction
+          ), each = n_years))
+
+
+rm(list = grep("ibm_sierraretin", ls() , value = TRUE, invert = FALSE))
+
+
+for(i in 1:(length(list.files("Output/Projections/")[grep("Natural_Vertedero", list.files("Output/Projections/"))]))){
+  
+  print(i)
+  
+  load(paste0("Output/Projections/", list.files("Output/Projections/")[grep("Natural_Vertedero", list.files("Output/Projections/"))][i]))
+}
+
+ibm_vertedero_canesm5_rcp85 = ibm_vertedero_canesm5
+ibm_vertedero_control_rcp85 = ibm_vertedero_control
+ibm_vertedero_ec_earth3_rcp85 = ibm_vertedero_ec_earth3
+ibm_vertedero_fgoals_g3_rcp85 = ibm_vertedero_fgoals_g3
+ibm_vertedero_gfdl_esm4_rcp85 = ibm_vertedero_gfdl_esm4
+ibm_vertedero_giss_e2_1_g_rcp85 = ibm_vertedero_giss_e2_1_g
+ibm_vertedero_inm_cm4_8_rcp85 = ibm_vertedero_inm_cm4_8
+ibm_vertedero_ipsl_cm6a_lr_rcp85 = ibm_vertedero_ipsl_cm6a_lr
+ibm_vertedero_miroc6_rcp85 = ibm_vertedero_miroc6
+ibm_vertedero_mpi_esm1_2_lr_rcp85 = ibm_vertedero_mpi_esm1_2_lr
+ibm_vertedero_mri_esm2_0_rcp85 = ibm_vertedero_mri_esm2_0
+ibm_vertedero_noresm2_mm_rcp85 = ibm_vertedero_noresm2_mm
+
+
+# Add log lambda (per simulation = per row)
+
+ibm_results$log_lambda[which(ibm_results$population == "Vertedero" &
+                             ibm_results$scenario == "RCP 8.5")] = 
+  c(t(rbind(ibm_vertedero_control_rcp85[[1]]$log_lambda,
+            ibm_vertedero_control_rcp85[[2]]$log_lambda,
+            ibm_vertedero_control_rcp85[[3]]$log_lambda,
+            ibm_vertedero_control_rcp85[[4]]$log_lambda,
+            ibm_vertedero_control_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_vertedero_canesm5_rcp85[[1]]$log_lambda,
+            ibm_vertedero_canesm5_rcp85[[2]]$log_lambda,
+            ibm_vertedero_canesm5_rcp85[[3]]$log_lambda,
+            ibm_vertedero_canesm5_rcp85[[4]]$log_lambda,
+            ibm_vertedero_canesm5_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_vertedero_ec_earth3_rcp85[[1]]$log_lambda,
+            ibm_vertedero_ec_earth3_rcp85[[2]]$log_lambda,
+            ibm_vertedero_ec_earth3_rcp85[[3]]$log_lambda,
+            ibm_vertedero_ec_earth3_rcp85[[4]]$log_lambda,
+            ibm_vertedero_ec_earth3_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_vertedero_fgoals_g3_rcp85[[1]]$log_lambda,
+            ibm_vertedero_fgoals_g3_rcp85[[2]]$log_lambda,
+            ibm_vertedero_fgoals_g3_rcp85[[3]]$log_lambda,
+            ibm_vertedero_fgoals_g3_rcp85[[4]]$log_lambda,
+            ibm_vertedero_fgoals_g3_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_vertedero_gfdl_esm4_rcp85[[1]]$log_lambda,
+            ibm_vertedero_gfdl_esm4_rcp85[[2]]$log_lambda,
+            ibm_vertedero_gfdl_esm4_rcp85[[3]]$log_lambda,
+            ibm_vertedero_gfdl_esm4_rcp85[[4]]$log_lambda,
+            ibm_vertedero_gfdl_esm4_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_vertedero_giss_e2_1_g_rcp85[[1]]$log_lambda,
+            ibm_vertedero_giss_e2_1_g_rcp85[[2]]$log_lambda,
+            ibm_vertedero_giss_e2_1_g_rcp85[[3]]$log_lambda,
+            ibm_vertedero_giss_e2_1_g_rcp85[[4]]$log_lambda,
+            ibm_vertedero_giss_e2_1_g_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_vertedero_inm_cm4_8_rcp85[[1]]$log_lambda,
+            ibm_vertedero_inm_cm4_8_rcp85[[2]]$log_lambda,
+            ibm_vertedero_inm_cm4_8_rcp85[[3]]$log_lambda,
+            ibm_vertedero_inm_cm4_8_rcp85[[4]]$log_lambda,
+            ibm_vertedero_inm_cm4_8_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_vertedero_ipsl_cm6a_lr_rcp85[[1]]$log_lambda,
+            ibm_vertedero_ipsl_cm6a_lr_rcp85[[2]]$log_lambda,
+            ibm_vertedero_ipsl_cm6a_lr_rcp85[[3]]$log_lambda,
+            ibm_vertedero_ipsl_cm6a_lr_rcp85[[4]]$log_lambda,
+            ibm_vertedero_ipsl_cm6a_lr_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_vertedero_miroc6_rcp85[[1]]$log_lambda,
+            ibm_vertedero_miroc6_rcp85[[2]]$log_lambda,
+            ibm_vertedero_miroc6_rcp85[[3]]$log_lambda,
+            ibm_vertedero_miroc6_rcp85[[4]]$log_lambda,
+            ibm_vertedero_miroc6_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_vertedero_mpi_esm1_2_lr_rcp85[[1]]$log_lambda,
+            ibm_vertedero_mpi_esm1_2_lr_rcp85[[2]]$log_lambda,
+            ibm_vertedero_mpi_esm1_2_lr_rcp85[[3]]$log_lambda,
+            ibm_vertedero_mpi_esm1_2_lr_rcp85[[4]]$log_lambda,
+            ibm_vertedero_mpi_esm1_2_lr_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_vertedero_mri_esm2_0_rcp85[[1]]$log_lambda,
+            ibm_vertedero_mri_esm2_0_rcp85[[2]]$log_lambda,
+            ibm_vertedero_mri_esm2_0_rcp85[[3]]$log_lambda,
+            ibm_vertedero_mri_esm2_0_rcp85[[4]]$log_lambda,
+            ibm_vertedero_mri_esm2_0_rcp85[[5]]$log_lambda)),
+    t(rbind(ibm_vertedero_noresm2_mm_rcp85[[1]]$log_lambda,
+            ibm_vertedero_noresm2_mm_rcp85[[2]]$log_lambda,
+            ibm_vertedero_noresm2_mm_rcp85[[3]]$log_lambda,
+            ibm_vertedero_noresm2_mm_rcp85[[4]]$log_lambda,
+            ibm_vertedero_noresm2_mm_rcp85[[5]]$log_lambda)))
+
+ibm_results$log_lambda[which(ibm_results$population == "Vertedero" &
+                               ibm_results$scenario == "RCP 4.5")] = 
+  c(t(rbind(ibm_vertedero_control_rcp45[[1]]$log_lambda,
+            ibm_vertedero_control_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_vertedero_control_rcp45[[3]]$log_lambda,
+            # ibm_vertedero_control_rcp45[[4]]$log_lambda,
+            # ibm_vertedero_control_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_vertedero_canesm5_rcp45[[1]]$log_lambda,
+            ibm_vertedero_canesm5_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_vertedero_canesm5_rcp45[[3]]$log_lambda,
+            # ibm_vertedero_canesm5_rcp45[[4]]$log_lambda,
+            # ibm_vertedero_canesm5_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_vertedero_ec_earth3_rcp45[[1]]$log_lambda,
+            ibm_vertedero_ec_earth3_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_vertedero_ec_earth3_rcp45[[3]]$log_lambda,
+            # ibm_vertedero_ec_earth3_rcp45[[4]]$log_lambda,
+            # ibm_vertedero_ec_earth3_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_vertedero_fgoals_g3_rcp45[[1]]$log_lambda,
+            ibm_vertedero_fgoals_g3_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_vertedero_fgoals_g3_rcp45[[3]]$log_lambda,
+            # ibm_vertedero_fgoals_g3_rcp45[[4]]$log_lambda,
+            # ibm_vertedero_fgoals_g3_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_vertedero_gfdl_esm4_rcp45[[1]]$log_lambda,
+            ibm_vertedero_gfdl_esm4_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_vertedero_gfdl_esm4_rcp45[[3]]$log_lambda,
+            # ibm_vertedero_gfdl_esm4_rcp45[[4]]$log_lambda,
+            # ibm_vertedero_gfdl_esm4_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_vertedero_giss_e2_1_g_rcp45[[1]]$log_lambda,
+            ibm_vertedero_giss_e2_1_g_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_vertedero_giss_e2_1_g_rcp45[[3]]$log_lambda,
+            # ibm_vertedero_giss_e2_1_g_rcp45[[4]]$log_lambda,
+            # ibm_vertedero_giss_e2_1_g_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_vertedero_inm_cm4_8_rcp45[[1]]$log_lambda,
+            ibm_vertedero_inm_cm4_8_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_vertedero_inm_cm4_8_rcp45[[3]]$log_lambda,
+            # ibm_vertedero_inm_cm4_8_rcp45[[4]]$log_lambda,
+            # ibm_vertedero_inm_cm4_8_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_vertedero_ipsl_cm6a_lr_rcp45[[1]]$log_lambda,
+            ibm_vertedero_ipsl_cm6a_lr_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_vertedero_ipsl_cm6a_lr_rcp45[[3]]$log_lambda,
+            # ibm_vertedero_ipsl_cm6a_lr_rcp45[[4]]$log_lambda,
+            # ibm_vertedero_ipsl_cm6a_lr_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_vertedero_miroc6_rcp45[[1]]$log_lambda,
+            ibm_vertedero_miroc6_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_vertedero_miroc6_rcp45[[3]]$log_lambda,
+            # ibm_vertedero_miroc6_rcp45[[4]]$log_lambda,
+            # ibm_vertedero_miroc6_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_vertedero_mpi_esm1_2_lr_rcp45[[1]]$log_lambda,
+            ibm_vertedero_mpi_esm1_2_lr_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_vertedero_mpi_esm1_2_lr_rcp45[[3]]$log_lambda,
+            # ibm_vertedero_mpi_esm1_2_lr_rcp45[[4]]$log_lambda,
+            # ibm_vertedero_mpi_esm1_2_lr_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_vertedero_mri_esm2_0_rcp45[[1]]$log_lambda,
+            ibm_vertedero_mri_esm2_0_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_vertedero_mri_esm2_0_rcp45[[3]]$log_lambda,
+            # ibm_vertedero_mri_esm2_0_rcp45[[4]]$log_lambda,
+            # ibm_vertedero_mri_esm2_0_rcp45[[5]]$log_lambda
+            )),
+    t(rbind(ibm_vertedero_noresm2_mm_rcp45[[1]]$log_lambda,
+            ibm_vertedero_noresm2_mm_rcp45[[2]]$log_lambda
+            # ,
+            # ibm_vertedero_noresm2_mm_rcp45[[3]]$log_lambda,
+            # ibm_vertedero_noresm2_mm_rcp45[[4]]$log_lambda,
+            # ibm_vertedero_noresm2_mm_rcp45[[5]]$log_lambda
+            )))
+
+
+# Add extinction
+
+ibm_results$extinction[which(ibm_results$population == "Vertedero" &
+                             ibm_results$scenario == "RCP 8.5")] = 
+  c(rep(c(ibm_vertedero_control_rcp85[[1]]$extinction,
+          ibm_vertedero_control_rcp85[[2]]$extinction,
+          ibm_vertedero_control_rcp85[[3]]$extinction,
+          ibm_vertedero_control_rcp85[[4]]$extinction,
+          ibm_vertedero_control_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_vertedero_canesm5_rcp85[[1]]$extinction,
+          ibm_vertedero_canesm5_rcp85[[2]]$extinction,
+          ibm_vertedero_canesm5_rcp85[[3]]$extinction,
+          ibm_vertedero_canesm5_rcp85[[4]]$extinction,
+          ibm_vertedero_canesm5_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_vertedero_ec_earth3_rcp85[[1]]$extinction,
+          ibm_vertedero_ec_earth3_rcp85[[2]]$extinction,
+          ibm_vertedero_ec_earth3_rcp85[[3]]$extinction,
+          ibm_vertedero_ec_earth3_rcp85[[4]]$extinction,
+          ibm_vertedero_ec_earth3_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_vertedero_fgoals_g3_rcp85[[1]]$extinction,
+          ibm_vertedero_fgoals_g3_rcp85[[2]]$extinction,
+          ibm_vertedero_fgoals_g3_rcp85[[3]]$extinction,
+          ibm_vertedero_fgoals_g3_rcp85[[4]]$extinction,
+          ibm_vertedero_fgoals_g3_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_vertedero_gfdl_esm4_rcp85[[1]]$extinction,
+          ibm_vertedero_gfdl_esm4_rcp85[[2]]$extinction,
+          ibm_vertedero_gfdl_esm4_rcp85[[3]]$extinction,
+          ibm_vertedero_gfdl_esm4_rcp85[[4]]$extinction,
+          ibm_vertedero_gfdl_esm4_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_vertedero_giss_e2_1_g_rcp85[[1]]$extinction,
+          ibm_vertedero_giss_e2_1_g_rcp85[[2]]$extinction,
+          ibm_vertedero_giss_e2_1_g_rcp85[[3]]$extinction,
+          ibm_vertedero_giss_e2_1_g_rcp85[[4]]$extinction,
+          ibm_vertedero_giss_e2_1_g_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_vertedero_inm_cm4_8_rcp85[[1]]$extinction,
+          ibm_vertedero_inm_cm4_8_rcp85[[2]]$extinction,
+          ibm_vertedero_inm_cm4_8_rcp85[[3]]$extinction,
+          ibm_vertedero_inm_cm4_8_rcp85[[4]]$extinction,
+          ibm_vertedero_inm_cm4_8_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_vertedero_ipsl_cm6a_lr_rcp85[[1]]$extinction,
+          ibm_vertedero_ipsl_cm6a_lr_rcp85[[2]]$extinction,
+          ibm_vertedero_ipsl_cm6a_lr_rcp85[[3]]$extinction,
+          ibm_vertedero_ipsl_cm6a_lr_rcp85[[4]]$extinction,
+          ibm_vertedero_ipsl_cm6a_lr_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_vertedero_miroc6_rcp85[[1]]$extinction,
+          ibm_vertedero_miroc6_rcp85[[2]]$extinction,
+          ibm_vertedero_miroc6_rcp85[[3]]$extinction,
+          ibm_vertedero_miroc6_rcp85[[4]]$extinction,
+          ibm_vertedero_miroc6_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_vertedero_mpi_esm1_2_lr_rcp85[[1]]$extinction,
+          ibm_vertedero_mpi_esm1_2_lr_rcp85[[2]]$extinction,
+          ibm_vertedero_mpi_esm1_2_lr_rcp85[[3]]$extinction,
+          ibm_vertedero_mpi_esm1_2_lr_rcp85[[4]]$extinction,
+          ibm_vertedero_mpi_esm1_2_lr_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_vertedero_mri_esm2_0_rcp85[[1]]$extinction,
+          ibm_vertedero_mri_esm2_0_rcp85[[2]]$extinction,
+          ibm_vertedero_mri_esm2_0_rcp85[[3]]$extinction,
+          ibm_vertedero_mri_esm2_0_rcp85[[4]]$extinction,
+          ibm_vertedero_mri_esm2_0_rcp85[[5]]$extinction), each = n_years),
+    rep(c(ibm_vertedero_noresm2_mm_rcp85[[1]]$extinction,
+          ibm_vertedero_noresm2_mm_rcp85[[2]]$extinction,
+          ibm_vertedero_noresm2_mm_rcp85[[3]]$extinction,
+          ibm_vertedero_noresm2_mm_rcp85[[4]]$extinction,
+          ibm_vertedero_noresm2_mm_rcp85[[5]]$extinction), each = n_years))
+
+ibm_results$extinction[which(ibm_results$population == "Vertedero" &
+                               ibm_results$scenario == "RCP 4.5")] = 
+  c(rep(c(ibm_vertedero_control_rcp45[[1]]$extinction,
+          ibm_vertedero_control_rcp45[[2]]$extinction
+          # ,
+          # ibm_vertedero_control_rcp45[[3]]$extinction,
+          # ibm_vertedero_control_rcp45[[4]]$extinction,
+          # ibm_vertedero_control_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_vertedero_canesm5_rcp45[[1]]$extinction,
+          ibm_vertedero_canesm5_rcp45[[2]]$extinction
+          # ,
+          # ibm_vertedero_canesm5_rcp45[[3]]$extinction,
+          # ibm_vertedero_canesm5_rcp45[[4]]$extinction,
+          # ibm_vertedero_canesm5_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_vertedero_ec_earth3_rcp45[[1]]$extinction,
+          ibm_vertedero_ec_earth3_rcp45[[2]]$extinction
+          # ,
+          # ibm_vertedero_ec_earth3_rcp45[[3]]$extinction,
+          # ibm_vertedero_ec_earth3_rcp45[[4]]$extinction,
+          # ibm_vertedero_ec_earth3_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_vertedero_fgoals_g3_rcp45[[1]]$extinction,
+          ibm_vertedero_fgoals_g3_rcp45[[2]]$extinction
+          # ,
+          # ibm_vertedero_fgoals_g3_rcp45[[3]]$extinction,
+          # ibm_vertedero_fgoals_g3_rcp45[[4]]$extinction,
+          # ibm_vertedero_fgoals_g3_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_vertedero_gfdl_esm4_rcp45[[1]]$extinction,
+          ibm_vertedero_gfdl_esm4_rcp45[[2]]$extinction
+          # ,
+          # ibm_vertedero_gfdl_esm4_rcp45[[3]]$extinction,
+          # ibm_vertedero_gfdl_esm4_rcp45[[4]]$extinction,
+          # ibm_vertedero_gfdl_esm4_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_vertedero_giss_e2_1_g_rcp45[[1]]$extinction,
+          ibm_vertedero_giss_e2_1_g_rcp45[[2]]$extinction
+          # ,
+          # ibm_vertedero_giss_e2_1_g_rcp45[[3]]$extinction,
+          # ibm_vertedero_giss_e2_1_g_rcp45[[4]]$extinction,
+          # ibm_vertedero_giss_e2_1_g_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_vertedero_inm_cm4_8_rcp45[[1]]$extinction,
+          ibm_vertedero_inm_cm4_8_rcp45[[2]]$extinction
+          # ,
+          # ibm_vertedero_inm_cm4_8_rcp45[[3]]$extinction,
+          # ibm_vertedero_inm_cm4_8_rcp45[[4]]$extinction,
+          # ibm_vertedero_inm_cm4_8_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_vertedero_ipsl_cm6a_lr_rcp45[[1]]$extinction,
+          ibm_vertedero_ipsl_cm6a_lr_rcp45[[2]]$extinction
+          # ,
+          # ibm_vertedero_ipsl_cm6a_lr_rcp45[[3]]$extinction,
+          # ibm_vertedero_ipsl_cm6a_lr_rcp45[[4]]$extinction,
+          # ibm_vertedero_ipsl_cm6a_lr_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_vertedero_miroc6_rcp45[[1]]$extinction,
+          ibm_vertedero_miroc6_rcp45[[2]]$extinction
+          # ,
+          # ibm_vertedero_miroc6_rcp45[[3]]$extinction,
+          # ibm_vertedero_miroc6_rcp45[[4]]$extinction,
+          # ibm_vertedero_miroc6_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_vertedero_mpi_esm1_2_lr_rcp45[[1]]$extinction,
+          ibm_vertedero_mpi_esm1_2_lr_rcp45[[2]]$extinction
+          # ,
+          # ibm_vertedero_mpi_esm1_2_lr_rcp45[[3]]$extinction,
+          # ibm_vertedero_mpi_esm1_2_lr_rcp45[[4]]$extinction,
+          # ibm_vertedero_mpi_esm1_2_lr_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_vertedero_mri_esm2_0_rcp45[[1]]$extinction,
+          ibm_vertedero_mri_esm2_0_rcp45[[2]]$extinction
+          # ,
+          # ibm_vertedero_mri_esm2_0_rcp45[[3]]$extinction,
+          # ibm_vertedero_mri_esm2_0_rcp45[[4]]$extinction,
+          # ibm_vertedero_mri_esm2_0_rcp45[[5]]$extinction
+          ), each = n_years),
+    rep(c(ibm_vertedero_noresm2_mm_rcp45[[1]]$extinction,
+          ibm_vertedero_noresm2_mm_rcp45[[2]]$extinction
+          # ,
+          # ibm_vertedero_noresm2_mm_rcp45[[3]]$extinction,
+          # ibm_vertedero_noresm2_mm_rcp45[[4]]$extinction,
+          # ibm_vertedero_noresm2_mm_rcp45[[5]]$extinction
+          ), each = n_years))
+
+
+rm(list = grep("ibm_vertedero", ls() , value = TRUE, invert = FALSE))
+
+write.csv(ibm_results, file = "Output/Projections/IBM_Results.csv", row.names = F)
+
+
+## 2.2. Summarising results ----
+# -------------------------
+
+ibm_results$habitat = factor(ibm_results$habitat, 
+                              levels = c("Natural", "Anthropogenic"))
+ibm_results$climate = factor(ibm_results$climate,
+                             levels = c("Control", "Climate change"))
+ibm_results$scenario = factor(ibm_results$scenario,
+                             levels = c("RCP 8.5", "RCP 4.5"))
+
+mean_lambda = 
+  aggregate(log_lambda ~ habitat + climate + scenario + population, 
+            data = ibm_results[which(!is.infinite(ibm_results$log_lambda)), ],
+            FUN = function(x) quantile(x, probs = c(0.025, 0.975), na.rm = T))
+
+mean_lambda = rbind(mean_lambda[which(mean_lambda$habitat == "Natural"), ],
+                    mean_lambda[which(mean_lambda$habitat == "Anthropogenic"), ])
+
+ibm_results$population_full = ibm_results$population
+
+ibm_results$population_full[which(ibm_results$population == "SierraCarboneraY5")] = "Sierra\nCarbonera\nYoung"
+ibm_results$population_full[which(ibm_results$population == "SierraRetinY5")] = "Sierra del\nRetín\nYoung"
+ibm_results$population_full[which(ibm_results$population == "MonteraTorero")] = "Montera\ndel\nTorero"
+ibm_results$population_full[which(ibm_results$population == "Retin")] = "Sierra del\nRetín\nDisturbed"
+ibm_results$population_full[which(ibm_results$population == "Prisoneros")] = "Prisioneros"
+ibm_results$population_full[which(ibm_results$population == "SCarbDist")] = "Sierra\nCarbonera\nDisturbed"
+
+
+mean_extinction = 
+  aggregate(extinction ~ habitat + climate + scenario + population, 
+            data = ibm_results,
+            FUN = mean, na.rm = T)
+
+mean_extinction_avg = 
+  aggregate(extinction ~ habitat + climate + scenario, 
+            data = mean_extinction,
+            FUN = function(x) c(mean(x, na.rm = T), quantile(x, probs = c(0.025, 0.975), na.rm = T)))
+
+mean_extinction_avg = cbind(mean_extinction_avg[, c("habitat", "climate", "scenario")],
+                            mean_extinction_avg$extinction)
+colnames(mean_extinction_avg) = c("habitat", "climate", "scenario", 
+                                  "mean", "lwr", "upr")
+
+
+
+
+###########################################################################
+#
+# 3. Plotting results ----
+#
+###########################################################################
+
+cbbPalette <- c("#111111", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+
+## 3.1. Log lambda ----
+# ----------------
+
+png(filename = "Output/Plots/LogLambda.png", 
+    width = 16,
+    height = 10,
+    units = "cm",
+    bg = "white",
+    res = 600)
+
+ggplot(ibm_results[-which(is.na(ibm_results$log_lambda) &
+                          ibm_results$scenario == "RCP 4.5"), ], aes(x = population_full, y = log_lambda, 
+                                                                 fill = climate, colour = climate)) +
+  facet_wrap(~ habitat, scales = "free") +
+  geom_boxplot(ymin = mean_lambda$log_lambda[which(mean_lambda$scenario == "RCP 8.5"), 1],
+               ymax = mean_lambda$log_lambda[which(mean_lambda$scenario == "RCP 8.5"), 2], outlier.size = 0.2, size = 0.2, alpha = 0.5) +
+  stat_summary(fun = mean, colour = cbbPalette[5], aes(shape = "Mean", group = climate), geom = "point", shape = 17, size = 1, position = position_dodge(width = 0.75)) +
+  labs(x = "Population", 
+       y = "Growth rate (log \u03BB)") +
+  scale_fill_manual(values = cbbPalette[1:2],
+                    name = "Climate") +
+  scale_colour_manual(values = cbbPalette[1:2],
+                      name = "Climate") +
+  scale_shape_manual("", values = c("Mean" = 17)) +
+  theme_minimal() +
+  theme(axis.line = element_line(colour = "black"),
+        axis.ticks = element_line(colour = "black"),
+        axis.title.x = element_text(size = 8, colour = "black", 
+                                    margin = margin(t = 0, r = 0, b = 10, l = 0)), 
+        axis.title.y = element_text(size = 8, colour = "black", angle = 90, 
+                                    margin = margin(t = 0, r = 5, b = 0, l = 0)), 
+        axis.text.x = element_text(size = 7, colour = "black", 
+                                   margin = margin(t = 2, r = 0, b = 5, l = 0)), 
+        axis.text.y = element_text(size = 7, colour = "black", 
+                                   margin = margin(t = 0, r = 2, b = 0, l = 0)), 
+        panel.grid = element_blank(),
+        legend.text = element_text(size = 7), 
+        legend.title = element_text(size = 8), 
+        legend.position = "bottom", 
+        legend.box.spacing = unit(0, "pt"),
+        legend.margin = margin(0, 0, 0, 0),
+        legend.key.size = unit(1, "lines"),
+        strip.background = element_blank())
+
+dev.off()
+
+
+lambda_agg = aggregate(log_lambda ~ climate + habitat + scenario + year + simulation, ibm_results[-which(is.nan(ibm_results$log_lambda) | is.infinite(ibm_results$log_lambda)), ], mean)
+
+mean_lambda_agg = 
+  aggregate(log_lambda ~ climate + habitat + scenario, 
+            data = lambda_agg,
+            FUN = function(x) c(mean(x), quantile(x, probs = c(0.025, 0.975), na.rm = T)))
+
+
+png(filename = "Output/Plots/LogLambda_Average.png", 
+    width = 14,
+    height = 10,
+    units = "cm",
+    bg = "white",
+    res = 600)
+
+lambda_average_plot = ggplot(lambda_agg[which(lambda_agg$scenario == "RCP 8.5"),], aes(x = habitat, y = log_lambda, 
+                       fill = climate, colour = climate)) +
+  geom_boxplot(ymin = mean_lambda_agg$log_lambda[which(mean_lambda_agg$scenario == "RCP 8.5"), 2],
+               ymax = mean_lambda_agg$log_lambda[which(mean_lambda_agg$scenario == "RCP 8.5"), 3], outlier.size = 0.2, size = 0.2, alpha = 0.5) +
+  stat_summary(fun = mean, colour = cbbPalette[5], aes(shape = "Mean", group = climate), geom = "point", shape = 17, size = 1, position = position_dodge(width = 0.75)) +
+  labs(x = "Habitat type", 
+       y = "Growth rate (log \u03BB)") +
+  scale_fill_manual(values = cbbPalette[1:2],
+                    name = "Climate scenario") +
+  scale_colour_manual(values = cbbPalette[1:2],
+                      name = "Climate scenario") +
+  scale_shape_manual("", values = c("Mean" = 17)) +
+  theme_minimal() %+replace%
+  theme(axis.line = element_line(colour = "black"),
+        axis.ticks = element_line(colour = "black"),
+        axis.title.x = element_text(size = 8, colour = "black", 
+                                    margin = margin(t = 0, r = 0, b = 0, l = 0)), 
+        axis.title.y = element_text(size = 8, colour = "black", angle = 90, 
+                                    margin = margin(t = 0, r = 5, b = 0, l = 0)), 
+        axis.text.x = element_text(size = 7, colour = "black", 
+                                   margin = margin(t = 2, r = 0, b = 5, l = 0)), 
+        axis.text.y = element_text(size = 7, colour = "black", 
+                                   margin = margin(t = 0, r = 2, b = 0, l = 0)), 
+        panel.grid = element_blank(),
+        legend.text = element_text(size = 7), 
+        legend.title = element_text(size = 8), 
+        legend.position = "right", 
+        legend.box.spacing = unit(0, "pt"),
+        legend.margin = margin(0, 0, 0, 0),
+        legend.key.size = unit(1, "lines"),
+        strip.background = element_blank())
+
+dev.off()
+
+
+## 3.2. Extinction ----
+# ----------------
+
+png(filename = "Output/Plots/Extinction.png", 
+    width = 14,
+    height = 10,
+    units = "cm",
+    bg = "white",
+    res = 600)
+
+ggplot(mean_extinction[which(mean_extinction$scenario == "RCP 8.5"),], aes(x = population, y = extinction, 
+                            fill = habitat, colour = climate)) +
+  geom_point(shape = 21, size = 4, position = position_dodge(width = 0.75)) +
+  labs(x = "Population", 
+       y = "Extinction probability") +
+  scale_fill_manual(values = cbbPalette[c(6, 4)],
+                    name = "Habitat type") +
+  scale_colour_manual(values = cbbPalette[1:2],
+                      name = "Climate") +
+  theme_minimal() +
+  theme(axis.line = element_line(colour = "black"),
+        axis.ticks = element_line(colour = "black"),
+        axis.title.x = element_text(size = 7, colour = "black", 
+                                    margin = margin(t = 0, r = 0, b = 0, l = 0)), 
+        axis.title.y = element_text(size = 7, colour = "black", 
+                                    margin = margin(t = 0, r = 5, b = 0, l = 0)), 
+        axis.text.x = element_text(size = 6, colour = "black", angle = 45, hjust = 1, 
+                                   margin = margin(t = 2, r = 0, b = 5, l = 0)), 
+        axis.text.y = element_text(size = 6, colour = "black", 
+                                   margin = margin(t = 0, r = 2, b = 0, l = 0)), 
+        legend.text = element_text(size = 6), 
+        legend.title = element_text(face = "bold", size = 7), 
+        legend.position = "right", 
+        legend.key.size = unit(2, "lines"),
+        strip.background = element_blank())
+
+dev.off()
+
+
+png(filename = "Output/Plots/Extinction_Average.png", 
+    width = 14,
+    height = 10,
+    units = "cm",
+    bg = "white",
+    res = 600)
+
+extinction_average_plot = ggplot(mean_extinction_avg[which(mean_extinction_avg$scenario == "RCP 8.5"), ], aes(x = habitat, y = mean, 
+                                colour = climate)) +
+  geom_point(shape = 20, size = 1.5, position = position_dodge(width = 0.75)) +
+  geom_errorbar(aes(ymin = lwr, ymax = upr), 
+                width = 0.2,
+                position = position_dodge(width = 0.75),
+                linewidth = 0.4) + 
+  labs(x = "Habitat type", 
+       y = "Extinction probability") +
+  scale_colour_manual(values = cbbPalette[1:2],
+                      name = "Climate scenario") +
+  scale_y_continuous(breaks = seq(0, 1, 0.2)) +
+  theme_minimal() +
+  theme(axis.line = element_line(colour = "black"),
+        axis.ticks = element_line(colour = "black"),
+        axis.title.x = element_text(size = 8, colour = "black", 
+                                    margin = margin(t = 0, r = 0, b = 0, l = 0)), 
+        axis.title.y = element_text(size = 8, colour = "black", 
+                                    margin = margin(t = 0, r = 5, b = 0, l = 0)), 
+        axis.text.x = element_text(size = 7, colour = "black", 
+                                   margin = margin(t = 2, r = 0, b = 5, l = 0)), 
+        axis.text.y = element_text(size = 7, colour = "black", 
+                                   margin = margin(t = 0, r = 2, b = 0, l = 0)),
+        panel.grid = element_blank(),
+        legend.text = element_text(size = 7), 
+        legend.title = element_text(size = 8), 
+        legend.position = "right", 
+        legend.box.spacing = unit(0, "pt"),
+        legend.margin = margin(0, 0, 0, 0),
+        legend.key.size = unit(1, "lines"),
+        strip.background = element_blank())
+
+dev.off()
+
+
+png(filename = "Output/Plots/Extinction_Average_RCP45.png", 
+    width = 8,
+    height = 6,
+    units = "cm",
+    bg = "white",
+    res = 600)
+
+extinction_average_rcp45_plot = ggplot(mean_extinction_avg[which(mean_extinction_avg$scenario == "RCP 4.5"), ], aes(x = habitat, y = mean, 
+                                                                                                              colour = climate)) +
+  geom_point(shape = 20, size = 1.5, position = position_dodge(width = 0.75)) +
+  geom_errorbar(aes(ymin = lwr, ymax = upr), 
+                width = 0.2,
+                position = position_dodge(width = 0.75),
+                linewidth = 0.4) + 
+  labs(x = "Habitat type", 
+       y = "Extinction probability") +
+  scale_colour_manual(values = cbbPalette[1:2],
+                      name = "Climate scenario") +
+  scale_y_continuous(breaks = seq(0, 1, 0.2)) +
+  theme_minimal() +
+  theme(axis.line = element_line(colour = "black"),
+        axis.ticks = element_line(colour = "black"),
+        axis.title.x = element_text(size = 8, colour = "black", 
+                                    margin = margin(t = 0, r = 0, b = 0, l = 0)), 
+        axis.title.y = element_text(size = 8, colour = "black", 
+                                    margin = margin(t = 0, r = 5, b = 0, l = 0)), 
+        axis.text.x = element_text(size = 7, colour = "black", 
+                                   margin = margin(t = 2, r = 0, b = 5, l = 0)), 
+        axis.text.y = element_text(size = 7, colour = "black", 
+                                   margin = margin(t = 0, r = 2, b = 0, l = 0)),
+        panel.grid = element_blank(),
+        legend.text = element_text(size = 7), 
+        legend.title = element_text(size = 8), 
+        legend.position = "right", 
+        legend.box.spacing = unit(0, "pt"),
+        legend.margin = margin(0, 0, 0, 0),
+        legend.key.size = unit(1, "lines"),
+        strip.background = element_blank())
+
+extinction_average_rcp45_plot
+
+dev.off()
+
+
+png(filename = "Output/Plots/Figure5.png", 
+    width = 8, 
+    height = 10, 
+    units = "cm", 
+    bg = "white", 
+    res = 600, 
+    type = "cairo")
+
+lambda_average_plot + extinction_average_plot +
+  plot_layout(ncol = 1) +
+  plot_annotation(tag_levels = 'a',
+                  tag_prefix = "(",
+                  tag_suffix = ")")  &
+  theme(plot.tag = element_text(size = 10))
+
+dev.off()
