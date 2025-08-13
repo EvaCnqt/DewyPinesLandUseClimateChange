@@ -24,6 +24,8 @@ rm(list = ls())
 # -----------------------
 
 library(bbmle)
+library(mgcv)
+library(MuMIn)
 
 
 ## 1.3. Loading data ----

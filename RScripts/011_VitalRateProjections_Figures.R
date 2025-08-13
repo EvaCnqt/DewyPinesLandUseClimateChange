@@ -1378,7 +1378,7 @@ avg_vr_sites = rbind(surv_pred[, c("dormancy", "time", "site", "vr", "mean_pred"
                      seedlingSize_pred[, c("dormancy", "time", "site", "vr", "mean_pred", "lwr", "upr", "mean_obs")])
 
 avg_vr_sites$site = factor(avg_vr_sites$site,
-                           labels = c("Bujeo", "Montera\ndel\nTorero", "Prisoneros",
+                           labels = c("Bujeo", "Montera\ndel\nTorero", "Prisioneros",
                                       "Sierra del\nRetín\nDisturbed", "Sierra\nCarbonera\nDisturbed",
                                       "Sierra\nCarbonera\nYoung", "Sierra del\nRetín\nYoung",
                                       "Vertedero"))
@@ -1472,7 +1472,7 @@ surv_plot_rain_sites = ggplot(surv_pred_noRE, aes(fallR_unscaled, surv)) +
   facet_wrap(~ site, 
              labeller = labeller(site = c("Bujeo" = "Bujeo",
                                           "MonteraTorero" = "Montera del\nTorero",
-                                          "Prisoneros" = "Prisoneros",
+                                          "Prisioneros" = "Prisioneros",
                                           "Retin" = "Sierra del\nRetín\nDisturbed",
                                           "SCarbDist" = "Sierra\nCarbonera\nDisturbed"))) +
   geom_line(linewidth = 0.7) +
@@ -1531,7 +1531,7 @@ growth_plot_temp_sites = ggplot(growth_pred_noRE, aes(summerT_unscaled, sizeNext
   facet_wrap(~ site, 
              labeller = labeller(site = c("Bujeo" = "Bujeo",
                                           "MonteraTorero" = "Montera del\nTorero",
-                                          "Prisoneros" = "Prisoneros",
+                                          "Prisioneros" = "Prisioneros",
                                           "Retin" = "Sierra del\nRetín\nDisturbed",
                                           "SCarbDist" = "Sierra\nCarbonera\nDisturbed"))) +
   geom_line(linewidth = 0.7) +
@@ -1588,7 +1588,7 @@ flowering_plot_rain_sites = ggplot(flowering_pred_noRE, aes(prevwinterR_unscaled
   facet_wrap(~ site, 
              labeller = labeller(site = c("Bujeo" = "Bujeo",
                                           "MonteraTorero" = "Montera del\nTorero",
-                                          "Prisoneros" = "Prisoneros",
+                                          "Prisioneros" = "Prisioneros",
                                           "Retin" = "Sierra del\nRetín\nDisturbed",
                                           "SCarbDist" = "Sierra\nCarbonera\nDisturbed"))) +
   geom_line(linewidth = 0.7) +
@@ -1644,7 +1644,7 @@ nbFlowers_plot_rain_sites = ggplot(nbFlowers_pred_noRE, aes(prevfallR_unscaled, 
   facet_wrap(~ site, 
              labeller = labeller(site = c("Bujeo" = "Bujeo",
                                           "MonteraTorero" = "Montera del\nTorero",
-                                          "Prisoneros" = "Prisoneros",
+                                          "Prisioneros" = "Prisioneros",
                                           "Retin" = "Sierra del\nRetín\nDisturbed",
                                           "SCarbDist" = "Sierra\nCarbonera\nDisturbed"))) +
   geom_line(linewidth = 0.7) +
@@ -1700,7 +1700,7 @@ seedlingSize_plot_temp_sites = ggplot(seedlingSize_pred_noRE, aes(prevwinterT_un
   facet_wrap(~ site, 
              labeller = labeller(site = c("Bujeo" = "Bujeo",
                                           "MonteraTorero" = "Montera del\nTorero",
-                                          "Prisoneros" = "Prisoneros",
+                                          "Prisioneros" = "Prisioneros",
                                           "Retin" = "Sierra del\nRetín\nDisturbed",
                                           "SCarbDist" = "Sierra\nCarbonera\nDisturbed"))) +
   geom_line(linewidth = 0.7) +

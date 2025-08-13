@@ -997,7 +997,7 @@ recruitCap = round(max(recruitCap$ID))
 
 
 # Function to run the projections in parallel
-ncpus <- 2
+ncpus <- 5
 
 startIBM <- function(sim){
   

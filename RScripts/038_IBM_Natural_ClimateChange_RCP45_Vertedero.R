@@ -1124,7 +1124,7 @@ max_nbFlowers = aggregate(nbFlowers ~ TSFcont,
 
 
 # Function to run the projections in parallel 
-ncpus <- 2
+ncpus <- 5
 
 startIBM <- function(sim){
   
