@@ -1,10 +1,8 @@
 ############################################################################
 #
 # This script projects the dewy-pine populations using an individual-based
-# model (IBM). The goal is to assess the effect of climate change on 
-# populations under natural fire regimes where seed dormancy follows a
-# natural pattern and populations that do not burn anymore and have
-# partly lost dormancy.
+# model (IBM). The goal is to assess the sensitivity of population dynamics 
+# to various vital rates under climate change.
 #
 # Author: Eva Conquet
 #
